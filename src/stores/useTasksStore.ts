@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
+import { useAuthStore } from './useAuthStore';
 
 export interface SubTask {
   id: string;
@@ -34,84 +36,143 @@ export const useTasksStore = create<TasksState>()(
     (set, get) => ({
       tasks: [],
 
-      addTask: (task) => {
+      addTask: async (task) => {
         const newTask: Task = {
           ...task,
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
         };
+        // Optimistic UI update
         set((state) => ({ tasks: [...state.tasks, newTask] }));
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid) {
+          await FirebaseTaskRepository.addTask(user.uid, newTask);
+        }
       },
 
-      updateTask: (id, updates) => {
+      updateTask: async (id, updates) => {
+        // Optimistic UI update
         set((state) => ({
           tasks: state.tasks.map((task) =>
             task.id === id ? { ...task, ...updates } : task
           ),
         }));
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid) {
+          await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+        }
       },
 
-      deleteTask: (id) => {
+      deleteTask: async (id) => {
+        // Optimistic UI update
         set((state) => ({
           tasks: state.tasks.filter((task) => task.id !== id),
         }));
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid) {
+          await FirebaseTaskRepository.deleteTask(user.uid, id);
+        }
       },
 
-      toggleTask: (id) => {
+      toggleTask: async (id) => {
+        const task = get().tasks.find(t => t.id === id);
+        if (!task) return;
+
+        const updates = {
+          completed: !task.completed,
+          completedAt: !task.completed ? new Date().toISOString() : undefined,
+        };
+
+        // Optimistic UI update
         set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === id
-              ? {
-                  ...task,
-                  completed: !task.completed,
-                  completedAt: !task.completed ? new Date().toISOString() : undefined,
-                }
-              : task
+          tasks: state.tasks.map((t) =>
+            t.id === id ? { ...t, ...updates } : t
           ),
         }));
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid) {
+          await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+        }
       },
 
-      addSubTask: (taskId, subTask) => {
+      addSubTask: async (taskId, subTask) => {
         const newSubTask: SubTask = {
           ...subTask,
           id: crypto.randomUUID(),
         };
-        
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? { ...task, subTasks: [...task.subTasks, newSubTask] }
-              : task
-          ),
-        }));
+
+        let updatedTask: Task | undefined;
+
+        // Optimistic UI update
+        set((state) => {
+          const newTasks = state.tasks.map((task) => {
+            if (task.id === taskId) {
+              updatedTask = { ...task, subTasks: [...task.subTasks, newSubTask] };
+              return updatedTask;
+            }
+            return task;
+          });
+          return { tasks: newTasks };
+        });
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid && updatedTask) {
+          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        }
       },
 
-      toggleSubTask: (taskId, subTaskId) => {
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  subTasks: task.subTasks.map((st) =>
-                    st.id === subTaskId ? { ...st, completed: !st.completed } : st
-                  ),
-                }
-              : task
-          ),
-        }));
+      toggleSubTask: async (taskId, subTaskId) => {
+        let updatedTask: Task | undefined;
+
+        // Optimistic UI update
+        set((state) => {
+          const newTasks = state.tasks.map((task) => {
+            if (task.id === taskId) {
+              updatedTask = {
+                ...task,
+                subTasks: task.subTasks.map((st) =>
+                  st.id === subTaskId ? { ...st, completed: !st.completed } : st
+                ),
+              };
+              return updatedTask;
+            }
+            return task;
+          });
+          return { tasks: newTasks };
+        });
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid && updatedTask) {
+          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        }
       },
 
-      deleteSubTask: (taskId, subTaskId) => {
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  subTasks: task.subTasks.filter((st) => st.id !== subTaskId),
-                }
-              : task
-          ),
-        }));
+      deleteSubTask: async (taskId, subTaskId) => {
+        let updatedTask: Task | undefined;
+
+        // Optimistic UI update
+        set((state) => {
+          const newTasks = state.tasks.map((task) => {
+            if (task.id === taskId) {
+              updatedTask = {
+                ...task,
+                subTasks: task.subTasks.filter((st) => st.id !== subTaskId),
+              };
+              return updatedTask;
+            }
+            return task;
+          });
+          return { tasks: newTasks };
+        });
+
+        const user = useAuthStore.getState().user;
+        if (user?.uid && updatedTask) {
+          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        }
       },
     }),
     {
