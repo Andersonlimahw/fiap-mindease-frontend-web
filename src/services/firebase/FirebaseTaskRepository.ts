@@ -16,13 +16,15 @@ export const FirebaseTaskRepository = {
     subscribeToTasks: (userId: string, onUpdate: (tasks: Task[]) => void) => {
         if (!userId) return () => { };
 
-        const tasksRef = collection(db, 'tasks');
+        // Point to the user-specific subcollection
+        const tasksRef = collection(db, 'users', userId, 'tasks');
 
         return onSnapshot(tasksRef, (snapshot) => {
             const tasks: Task[] = [];
             snapshot.forEach((doc) => {
                 tasks.push({ id: doc.id, ...doc.data() } as Task);
             });
+            console.log(`FirebaseTaskRepository: Received ${tasks.length} tasks for user ${userId}`);
             onUpdate(tasks);
         }, (error) => {
             console.error('Error listening to tasks:', error);
@@ -33,15 +35,14 @@ export const FirebaseTaskRepository = {
      * Add a new task
      */
     addTask: async (userId: string, task: Task) => {
-        alert('addTask -> ' + userId + ' -> ' + task.id + ' -> ' + task.title);
         if (!userId) return;
         try {
             console.log(`FirebaseTaskRepository: Adding task at users/${userId}/tasks/${task.id}`);
-            const taskRef = doc(db, 'tasks', task.id);
+            const taskRef = doc(db, 'users', userId, 'tasks', task.id);
             // Ensure no undefined fields are sent to Firestore
             const taskToSave = JSON.parse(JSON.stringify(task));
             await setDoc(taskRef, taskToSave);
-            console.log(`FirebaseTaskRepository: Task added successfully to users/${userId}/tasks/${task.id}`);
+            console.log(`FirebaseTaskRepository: Task added successfully`);
         } catch (error) {
             console.error('Error adding task to Firebase:', error);
             throw error;
@@ -54,7 +55,8 @@ export const FirebaseTaskRepository = {
     updateTask: async (userId: string, taskId: string, updates: Partial<Task>) => {
         if (!userId) return;
         try {
-            const taskRef = doc(db, 'tasks', taskId);
+            console.log(`FirebaseTaskRepository: Updating task users/${userId}/tasks/${taskId}`);
+            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
             // Ensure no undefined fields
             const dataToUpdate = JSON.parse(JSON.stringify(updates));
             await updateDoc(taskRef, dataToUpdate);
@@ -70,7 +72,8 @@ export const FirebaseTaskRepository = {
     deleteTask: async (userId: string, taskId: string) => {
         if (!userId) return;
         try {
-            const taskRef = doc(db, 'tasks', taskId);
+            console.log(`FirebaseTaskRepository: Deleting task users/${userId}/tasks/${taskId}`);
+            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
             await deleteDoc(taskRef);
         } catch (error) {
             console.error('Error deleting task in Firebase:', error);
