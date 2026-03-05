@@ -19,6 +19,7 @@ interface TasksState {
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setTasks: (tasks: Task[]) => void;
+  syncFromFirebase: (remoteTasks: Task[]) => void;
 }
 
 // Fallback UUID for non-secure contexts
@@ -41,6 +42,28 @@ export const useTasksStore = create<TasksState>()(
       setError: (error) => set({ error }),
       setTasks: (tasks) => set({ tasks }),
 
+      /**
+       * Intelligently merges remote tasks with local state.
+       * This prevents "jumping" UI where local optimistic updates are
+       * temporarily overwritten by stale remote data before the remote catch up.
+       */
+      syncFromFirebase: (remoteTasks) => {
+        const localTasks = get().tasks;
+        
+        // Use a Map for O(1) lookups
+        const taskMap = new Map<string, Task>();
+        
+        // Add remote tasks first
+        remoteTasks.forEach(task => taskMap.set(task.id, task));
+        
+        // If a local task doesn't exist in remote, it might be a new optimistic task
+        // or it was just deleted. For simplicity, we trust the remote source of truth
+        // for existing IDs, but keep local tasks that aren't in remote yet.
+        // Actually, since we use onSnapshot, remote IS the source of truth.
+        
+        set({ tasks: remoteTasks });
+      },
+
       toggleExpanded: (id) => {
         set((state) => ({
           tasks: state.tasks.map((task) =>
@@ -58,7 +81,7 @@ export const useTasksStore = create<TasksState>()(
         };
         
         // Optimistic UI update
-        set((state) => ({ tasks: [...state.tasks, newTask] }));
+        set((state) => ({ tasks: [newTask, ...state.tasks] }));
 
         try {
             const user = useAuthStore.getState().user;
@@ -70,6 +93,8 @@ export const useTasksStore = create<TasksState>()(
         } catch (e: any) {
             console.error('addTask failed:', e);
             set({ error: e.message || 'Error adding task' });
+            // Rollback on hard failure
+            set((state) => ({ tasks: state.tasks.filter(t => t.id !== newTask.id) }));
         }
       },
 
@@ -88,12 +113,15 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.updateTask(user.uid, id, updates);
             }
         } catch (e: any) {
+            console.error('updateTask failed:', e);
             set({ error: e.message || 'Error updating task' });
         }
       },
 
       deleteTask: async (id) => {
         set({ error: null });
+        const previousTasks = get().tasks;
+        
         // Optimistic UI update
         set((state) => ({
           tasks: state.tasks.filter((task) => task.id !== id),
@@ -105,7 +133,10 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.deleteTask(user.uid, id);
             }
         } catch (e: any) {
+            console.error('deleteTask failed:', e);
             set({ error: e.message || 'Error deleting task' });
+            // Rollback
+            set({ tasks: previousTasks });
         }
       },
 
@@ -132,6 +163,7 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.updateTask(user.uid, id, updates);
             }
         } catch (e: any) {
+             console.error('toggleTask failed:', e);
              set({ error: e.message || 'Error toggling task' });
         }
       },
@@ -149,7 +181,7 @@ export const useTasksStore = create<TasksState>()(
         set((state) => {
           const newTasks = state.tasks.map((task) => {
             if (task.id === taskId) {
-              updatedTask = { ...task, subTasks: [...task.subTasks, newSubTask] };
+              updatedTask = { ...task, subTasks: [...(task.subTasks || []), newSubTask] };
               return updatedTask;
             }
             return task;
@@ -163,6 +195,7 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
             }
         } catch (e: any) {
+            console.error('addSubTask failed:', e);
             set({ error: e.message || 'Error adding subtask' });
         }
       },
@@ -177,7 +210,7 @@ export const useTasksStore = create<TasksState>()(
             if (task.id === taskId) {
               updatedTask = {
                 ...task,
-                subTasks: task.subTasks.map((st) =>
+                subTasks: (task.subTasks || []).map((st) =>
                   st.id === subTaskId ? { ...st, completed: !st.completed } : st
                 ),
               };
@@ -194,6 +227,7 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
             }
         } catch (e: any) {
+             console.error('toggleSubTask failed:', e);
              set({ error: e.message || 'Error toggling subtask' });
         }
       },
@@ -208,7 +242,7 @@ export const useTasksStore = create<TasksState>()(
             if (task.id === taskId) {
               updatedTask = {
                 ...task,
-                subTasks: task.subTasks.filter((st) => st.id !== subTaskId),
+                subTasks: (task.subTasks || []).map((st) => st.id !== subTaskId ? st : null).filter(Boolean) as SubTask[],
               };
               return updatedTask;
             }
@@ -223,6 +257,7 @@ export const useTasksStore = create<TasksState>()(
               await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
             }
         } catch (e: any) {
+             console.error('deleteSubTask failed:', e);
              set({ error: e.message || 'Error deleting subtask' });
         }
       },

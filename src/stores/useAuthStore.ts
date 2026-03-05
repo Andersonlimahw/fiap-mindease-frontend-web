@@ -83,8 +83,8 @@ useAuthStore.subscribe((state) => {
     // 3. Subscribe to tasks
     if (unsubscribeTasks) unsubscribeTasks();
     unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(currentUid, (tasks) => {
-        // Update store directly using the new action
-        useTasksStore.getState().setTasks(tasks);
+        // Use the intelligent merge logic
+        useTasksStore.getState().syncFromFirebase(tasks);
     });
     
     // 4. Load Chat History

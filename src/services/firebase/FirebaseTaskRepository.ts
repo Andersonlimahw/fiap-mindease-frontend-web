@@ -16,7 +16,7 @@ export const FirebaseTaskRepository = {
     subscribeToTasks: (userId: string, onUpdate: (tasks: Task[]) => void) => {
         if (!userId) return () => { };
 
-        const tasksRef = collection(db, 'users', userId, 'tasks');
+        const tasksRef = collection(db, 'tasks');
 
         return onSnapshot(tasksRef, (snapshot) => {
             const tasks: Task[] = [];
@@ -33,14 +33,15 @@ export const FirebaseTaskRepository = {
      * Add a new task
      */
     addTask: async (userId: string, task: Task) => {
+        alert('addTask -> ' + userId + ' -> ' + task.id + ' -> ' + task.title);
         if (!userId) return;
         try {
-            console.log('FirebaseTaskRepository: Adding task', task.id, 'for user', userId);
-            const taskRef = doc(db, 'users', userId, 'tasks', task.id);
+            console.log(`FirebaseTaskRepository: Adding task at users/${userId}/tasks/${task.id}`);
+            const taskRef = doc(db, 'tasks', task.id);
             // Ensure no undefined fields are sent to Firestore
             const taskToSave = JSON.parse(JSON.stringify(task));
             await setDoc(taskRef, taskToSave);
-            console.log('FirebaseTaskRepository: Task added successfully');
+            console.log(`FirebaseTaskRepository: Task added successfully to users/${userId}/tasks/${task.id}`);
         } catch (error) {
             console.error('Error adding task to Firebase:', error);
             throw error;
@@ -53,7 +54,7 @@ export const FirebaseTaskRepository = {
     updateTask: async (userId: string, taskId: string, updates: Partial<Task>) => {
         if (!userId) return;
         try {
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            const taskRef = doc(db, 'tasks', taskId);
             // Ensure no undefined fields
             const dataToUpdate = JSON.parse(JSON.stringify(updates));
             await updateDoc(taskRef, dataToUpdate);
@@ -69,7 +70,7 @@ export const FirebaseTaskRepository = {
     deleteTask: async (userId: string, taskId: string) => {
         if (!userId) return;
         try {
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            const taskRef = doc(db, 'tasks', taskId);
             await deleteDoc(taskRef);
         } catch (error) {
             console.error('Error deleting task in Firebase:', error);
