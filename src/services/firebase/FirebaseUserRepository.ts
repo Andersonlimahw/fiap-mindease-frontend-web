@@ -82,7 +82,7 @@ export const FirebaseUserRepository = {
 
                 // Sync Theme
                 if (data.theme && ['light', 'dark', 'high-contrast'].includes(data.theme)) {
-                    useThemeStore.getState().setTheme(data.theme as 'light' | 'dark' | 'system' | 'high-contrast');
+                    useThemeStore.getState().setTheme(data.theme as any);
                 }
 
                 // Sync Accessibility

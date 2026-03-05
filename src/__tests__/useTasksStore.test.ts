@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTasksStore } from '../stores/useTasksStore';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { useAuthStore } from '../stores/useAuthStore';
+import { Task } from '../types/task';
 
 // Mock the FirebaseTaskRepository directly to avoid firestore calls during store tests
 vi.mock('../services/firebase/FirebaseTaskRepository', () => ({
@@ -9,14 +10,14 @@ vi.mock('../services/firebase/FirebaseTaskRepository', () => ({
     addTask: vi.fn(),
     updateTask: vi.fn(),
     deleteTask: vi.fn(),
-    subscribeToTasks: vi.fn(() => vi.fn()),
+    subscribeToTasks: vi.fn((uid, cb) => vi.fn()),
   }
 }));
 
 describe('useTasksStore', () => {
   beforeEach(() => {
     // Reset Zustand store
-    useTasksStore.setState({ tasks: [] });
+    useTasksStore.setState({ tasks: [], error: null, isLoading: false });
     // Mock authenticated user
     useAuthStore.setState({
       user: { uid: 'user-123', email: 'test@test.com' },
@@ -34,7 +35,7 @@ describe('useTasksStore', () => {
       subTasks: []
     };
 
-    useTasksStore.getState().addTask(taskData);
+    await useTasksStore.getState().addTask(taskData);
 
     const state = useTasksStore.getState();
     expect(state.tasks).toHaveLength(1);
@@ -48,7 +49,7 @@ describe('useTasksStore', () => {
   });
 
   it('should toggle a task and update Firebase', async () => {
-    const initialTask = {
+    const initialTask: Task = {
       id: 'task-1',
       title: 'Task 1',
       description: '',
@@ -72,7 +73,7 @@ describe('useTasksStore', () => {
   });
 
   it('should delete a task and update Firebase', async () => {
-    const initialTask = {
+    const initialTask: Task = {
         id: 'task-1',
         title: 'Task 1',
         description: '',

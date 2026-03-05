@@ -4,6 +4,7 @@ import { FirebaseAuthService } from '../services/firebase/FirebaseAuthService';
 import { FirebaseUserRepository } from '../services/firebase/FirebaseUserRepository';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { FirebaseChatRepository } from '../services/firebase/FirebaseChatRepository';
+import { useTasksStore } from './useTasksStore';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -33,7 +34,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
-        // Use Firebase Auth Adapter
         await FirebaseAuthService.login(email, password);
       },
 
@@ -53,8 +53,6 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'mindease-auth',
       partialize: (state) => ({
-        // We persist isAuthenticated state temporarily for optimistic UI, 
-        // but the source of truth is the FirebaseAuthService.init listener.
         isAuthenticated: state.isAuthenticated,
         user: state.user,
       }),
@@ -65,17 +63,36 @@ export const useAuthStore = create<AuthState>()(
 // Initialize remote listener to sync Firebase user state with Zustand
 FirebaseAuthService.init();
 
-// When user value changes to authenticated, setup their data
-useAuthStore.subscribe((state, prevState) => {
-  if (state.isAuthenticated && state.user?.uid && !prevState.isAuthenticated) {
-    const uid = state.user.uid;
+// Use a more robust check for authentication status
+let lastUid: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const currentUid = state.isAuthenticated ? state.user?.uid : null;
+  
+  if (currentUid && currentUid !== lastUid) {
+    console.log('useAuthStore: User authenticated, initializing data for', currentUid);
+    lastUid = currentUid;
+    
     // 1. Load User Preferences
-    FirebaseUserRepository.loadPreferences(uid);
+    FirebaseUserRepository.loadPreferences(currentUid);
+    
     // 2. Setup save subscriptions for subsequent changes
-    unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(uid);
+    if (unsubscribeStore) unsubscribeStore();
+    unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(currentUid);
+    
     // 3. Subscribe to tasks
-    unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(uid);
+    if (unsubscribeTasks) unsubscribeTasks();
+    unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(currentUid, (tasks) => {
+        // Update store directly using the new action
+        useTasksStore.getState().setTasks(tasks);
+    });
+    
     // 4. Load Chat History
-    FirebaseChatRepository.loadHistory(uid);
+    FirebaseChatRepository.loadHistory(currentUid);
+  } else if (!currentUid && lastUid) {
+    console.log('useAuthStore: User logged out, cleaning up');
+    lastUid = null;
+    if (unsubscribeStore) unsubscribeStore();
+    if (unsubscribeTasks) unsubscribeTasks();
   }
 });

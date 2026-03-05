@@ -2,21 +2,18 @@ import {
     collection,
     doc,
     setDoc,
-    getDocs,
     deleteDoc,
     updateDoc,
-    query,
-    where,
     onSnapshot
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Task, useTasksStore } from '../../stores/useTasksStore';
+import { Task } from '../../types/task';
 
 export const FirebaseTaskRepository = {
     /**
-     * Listen to user tasks in real-time and update Zustand
+     * Listen to user tasks in real-time
      */
-    subscribeToTasks: (userId: string) => {
+    subscribeToTasks: (userId: string, onUpdate: (tasks: Task[]) => void) => {
         if (!userId) return () => { };
 
         const tasksRef = collection(db, 'users', userId, 'tasks');
@@ -26,9 +23,7 @@ export const FirebaseTaskRepository = {
             snapshot.forEach((doc) => {
                 tasks.push({ id: doc.id, ...doc.data() } as Task);
             });
-
-            // Update store directly without triggering save back to Firebase (prevent infinite loop)
-            useTasksStore.setState({ tasks });
+            onUpdate(tasks);
         }, (error) => {
             console.error('Error listening to tasks:', error);
         });
@@ -40,10 +35,15 @@ export const FirebaseTaskRepository = {
     addTask: async (userId: string, task: Task) => {
         if (!userId) return;
         try {
+            console.log('FirebaseTaskRepository: Adding task', task.id, 'for user', userId);
             const taskRef = doc(db, 'users', userId, 'tasks', task.id);
-            await setDoc(taskRef, task);
+            // Ensure no undefined fields are sent to Firestore
+            const taskToSave = JSON.parse(JSON.stringify(task));
+            await setDoc(taskRef, taskToSave);
+            console.log('FirebaseTaskRepository: Task added successfully');
         } catch (error) {
             console.error('Error adding task to Firebase:', error);
+            throw error;
         }
     },
 
@@ -54,9 +54,12 @@ export const FirebaseTaskRepository = {
         if (!userId) return;
         try {
             const taskRef = doc(db, 'users', userId, 'tasks', taskId);
-            await updateDoc(taskRef, updates);
+            // Ensure no undefined fields
+            const dataToUpdate = JSON.parse(JSON.stringify(updates));
+            await updateDoc(taskRef, dataToUpdate);
         } catch (error) {
             console.error('Error updating task in Firebase:', error);
+            throw error;
         }
     },
 
@@ -70,6 +73,7 @@ export const FirebaseTaskRepository = {
             await deleteDoc(taskRef);
         } catch (error) {
             console.error('Error deleting task in Firebase:', error);
+            throw error;
         }
     }
 };

@@ -19,7 +19,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
   const { currentScreen, navigate } = useNavigationStore();
   const { settings, updateSettings } = useAccessibilityStore();
   const { theme, setTheme } = useThemeStore();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -269,15 +269,11 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Nome</Label>
-                  <p className="text-sm">Usuário Demo</p>
+                  <p className="text-sm">{user?.name || 'Usuário do MindEase'}</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <p className="text-sm">usuario@demo.com</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Membro desde</Label>
-                  <p className="text-sm">Janeiro 2026</p>
+                  <p className="text-sm">{user?.email || 'N/A'}</p>
                 </div>
               </CardContent>
             </Card>

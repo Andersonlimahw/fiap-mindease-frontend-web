@@ -2,24 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { useAuthStore } from './useAuthStore';
-
-export interface SubTask {
-  id: string;
-  title: string;
-  completed: boolean;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  priority: 'low' | 'medium' | 'high';
-  completed: boolean;
-  subTasks: SubTask[];
-  createdAt: string;
-  completedAt?: string;
-  expanded?: boolean;
-}
+import { Task, SubTask } from '../types/task';
 
 interface TasksState {
   tasks: Task[];
@@ -35,7 +18,17 @@ interface TasksState {
   toggleExpanded: (id: string) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
+  setTasks: (tasks: Task[]) => void;
 }
+
+// Fallback UUID for non-secure contexts
+const generateId = () => {
+    try {
+        return crypto.randomUUID();
+    } catch {
+        return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+    }
+};
 
 export const useTasksStore = create<TasksState>()(
   persist(
@@ -46,6 +39,7 @@ export const useTasksStore = create<TasksState>()(
 
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
+      setTasks: (tasks) => set({ tasks }),
 
       toggleExpanded: (id) => {
         set((state) => ({
@@ -59,9 +53,10 @@ export const useTasksStore = create<TasksState>()(
         set({ error: null });
         const newTask: Task = {
           ...task,
-          id: crypto.randomUUID(),
+          id: generateId(),
           createdAt: new Date().toISOString(),
         };
+        
         // Optimistic UI update
         set((state) => ({ tasks: [...state.tasks, newTask] }));
 
@@ -69,10 +64,12 @@ export const useTasksStore = create<TasksState>()(
             const user = useAuthStore.getState().user;
             if (user?.uid) {
               await FirebaseTaskRepository.addTask(user.uid, newTask);
+            } else {
+                console.warn('addTask: No user authenticated');
             }
         } catch (e: any) {
+            console.error('addTask failed:', e);
             set({ error: e.message || 'Error adding task' });
-            // Rollback could be implemented here
         }
       },
 
@@ -143,7 +140,7 @@ export const useTasksStore = create<TasksState>()(
         set({ error: null });
         const newSubTask: SubTask = {
           ...subTask,
-          id: crypto.randomUUID(),
+          id: generateId(),
         };
 
         let updatedTask: Task | undefined;
