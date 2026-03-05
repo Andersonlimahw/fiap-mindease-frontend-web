@@ -3,6 +3,7 @@ import { db } from '../../config/firebase';
 import { usePomodoroStore } from '../../stores/usePomodoroStore';
 import { useThemeStore } from '../../stores/useThemeStore';
 import { useAccessibilityStore } from '../../stores/useAccessibilityStore';
+import { useFocusModeStore, AmbientSound } from '../../stores/useFocusModeStore';
 
 interface UserPreferences {
     // Pomodoro
@@ -12,6 +13,12 @@ interface UserPreferences {
     shortBreakDuration?: number;
     longBreakDuration?: number;
     sessionsUntilLongBreak?: number;
+
+    // Focus Mode
+    fmDuration?: number;
+    fmAmbientSound?: string;
+    fmDimBrightness?: boolean;
+    fmBlockNotifications?: boolean;
 
     // Theme
     theme?: 'light' | 'dark' | 'system' | 'high-contrast';
@@ -67,9 +74,15 @@ export const FirebaseUserRepository = {
                     });
                 }
 
+                // Sync Focus Mode
+                if (data.fmDuration !== undefined) useFocusModeStore.getState().setDuration(data.fmDuration);
+                if (data.fmAmbientSound !== undefined) useFocusModeStore.getState().setAmbientSound(data.fmAmbientSound as AmbientSound);
+                if (data.fmDimBrightness !== undefined) useFocusModeStore.getState().setDimBrightness(data.fmDimBrightness);
+                if (data.fmBlockNotifications !== undefined) useFocusModeStore.getState().setBlockNotifications(data.fmBlockNotifications);
+
                 // Sync Theme
                 if (data.theme && ['light', 'dark', 'high-contrast'].includes(data.theme)) {
-                    useThemeStore.getState().setTheme(data.theme as any);
+                    useThemeStore.getState().setTheme(data.theme as 'light' | 'dark' | 'system' | 'high-contrast');
                 }
 
                 // Sync Accessibility
@@ -110,6 +123,23 @@ export const FirebaseUserRepository = {
             }
         });
 
+        // Subscribe to Focus Mode changes
+        const unsubFocusMode = useFocusModeStore.subscribe((state, prevState) => {
+            if (
+                state.duration !== prevState.duration ||
+                state.ambientSound !== prevState.ambientSound ||
+                state.dimBrightness !== prevState.dimBrightness ||
+                state.blockNotifications !== prevState.blockNotifications
+            ) {
+                FirebaseUserRepository.savePreferences(userId, {
+                    fmDuration: state.duration,
+                    fmAmbientSound: state.ambientSound,
+                    fmDimBrightness: state.dimBrightness,
+                    fmBlockNotifications: state.blockNotifications
+                });
+            }
+        });
+
         // Subscribe to Theme changes
         const unsubTheme = useThemeStore.subscribe((state, prevState) => {
             if (
@@ -132,6 +162,7 @@ export const FirebaseUserRepository = {
 
         return () => {
             unsubPomodoro();
+            unsubFocusMode();
             unsubTheme();
             unsubA11y();
         };

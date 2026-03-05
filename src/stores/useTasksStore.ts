@@ -18,25 +18,45 @@ export interface Task {
   subTasks: SubTask[];
   createdAt: string;
   completedAt?: string;
+  expanded?: boolean;
 }
 
 interface TasksState {
   tasks: Task[];
-  addTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  toggleTask: (id: string) => void;
-  addSubTask: (taskId: string, subTask: Omit<SubTask, 'id'>) => void;
-  toggleSubTask: (taskId: string, subTaskId: string) => void;
-  deleteSubTask: (taskId: string, subTaskId: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  addTask: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  toggleTask: (id: string) => Promise<void>;
+  addSubTask: (taskId: string, subTask: Omit<SubTask, 'id'>) => Promise<void>;
+  toggleSubTask: (taskId: string, subTaskId: string) => Promise<void>;
+  deleteSubTask: (taskId: string, subTaskId: string) => Promise<void>;
+  toggleExpanded: (id: string) => void;
+  setLoading: (isLoading: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
 export const useTasksStore = create<TasksState>()(
   persist(
     (set, get) => ({
       tasks: [],
+      isLoading: false,
+      error: null,
+
+      setLoading: (isLoading) => set({ isLoading }),
+      setError: (error) => set({ error }),
+
+      toggleExpanded: (id) => {
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === id ? { ...task, expanded: !task.expanded } : task
+          ),
+        }));
+      },
 
       addTask: async (task) => {
+        set({ error: null });
         const newTask: Task = {
           ...task,
           id: crypto.randomUUID(),
@@ -45,13 +65,19 @@ export const useTasksStore = create<TasksState>()(
         // Optimistic UI update
         set((state) => ({ tasks: [...state.tasks, newTask] }));
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid) {
-          await FirebaseTaskRepository.addTask(user.uid, newTask);
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid) {
+              await FirebaseTaskRepository.addTask(user.uid, newTask);
+            }
+        } catch (e: any) {
+            set({ error: e.message || 'Error adding task' });
+            // Rollback could be implemented here
         }
       },
 
       updateTask: async (id, updates) => {
+        set({ error: null });
         // Optimistic UI update
         set((state) => ({
           tasks: state.tasks.map((task) =>
@@ -59,25 +85,35 @@ export const useTasksStore = create<TasksState>()(
           ),
         }));
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid) {
-          await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid) {
+              await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+            }
+        } catch (e: any) {
+            set({ error: e.message || 'Error updating task' });
         }
       },
 
       deleteTask: async (id) => {
+        set({ error: null });
         // Optimistic UI update
         set((state) => ({
           tasks: state.tasks.filter((task) => task.id !== id),
         }));
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid) {
-          await FirebaseTaskRepository.deleteTask(user.uid, id);
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid) {
+              await FirebaseTaskRepository.deleteTask(user.uid, id);
+            }
+        } catch (e: any) {
+            set({ error: e.message || 'Error deleting task' });
         }
       },
 
       toggleTask: async (id) => {
+        set({ error: null });
         const task = get().tasks.find(t => t.id === id);
         if (!task) return;
 
@@ -93,13 +129,18 @@ export const useTasksStore = create<TasksState>()(
           ),
         }));
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid) {
-          await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid) {
+              await FirebaseTaskRepository.updateTask(user.uid, id, updates);
+            }
+        } catch (e: any) {
+             set({ error: e.message || 'Error toggling task' });
         }
       },
 
       addSubTask: async (taskId, subTask) => {
+        set({ error: null });
         const newSubTask: SubTask = {
           ...subTask,
           id: crypto.randomUUID(),
@@ -119,13 +160,18 @@ export const useTasksStore = create<TasksState>()(
           return { tasks: newTasks };
         });
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid && updatedTask) {
-          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid && updatedTask) {
+              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+            }
+        } catch (e: any) {
+            set({ error: e.message || 'Error adding subtask' });
         }
       },
 
       toggleSubTask: async (taskId, subTaskId) => {
+        set({ error: null });
         let updatedTask: Task | undefined;
 
         // Optimistic UI update
@@ -145,13 +191,18 @@ export const useTasksStore = create<TasksState>()(
           return { tasks: newTasks };
         });
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid && updatedTask) {
-          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid && updatedTask) {
+              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+            }
+        } catch (e: any) {
+             set({ error: e.message || 'Error toggling subtask' });
         }
       },
 
       deleteSubTask: async (taskId, subTaskId) => {
+        set({ error: null });
         let updatedTask: Task | undefined;
 
         // Optimistic UI update
@@ -169,14 +220,19 @@ export const useTasksStore = create<TasksState>()(
           return { tasks: newTasks };
         });
 
-        const user = useAuthStore.getState().user;
-        if (user?.uid && updatedTask) {
-          await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+        try {
+            const user = useAuthStore.getState().user;
+            if (user?.uid && updatedTask) {
+              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
+            }
+        } catch (e: any) {
+             set({ error: e.message || 'Error deleting subtask' });
         }
       },
     }),
     {
       name: 'mindease-tasks',
+      partialize: (state) => ({ tasks: state.tasks }),
     }
   )
 );

@@ -174,7 +174,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
               <CardContent>
                 <Select
                   value={settings.colorBlindMode}
-                  onValueChange={(value: any) => {
+                  onValueChange={(value: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia') => {
                     updateSettings({ colorBlindMode: value });
                     toast.success('Modo de cor atualizado');
                   }}

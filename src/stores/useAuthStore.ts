@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { FirebaseAuthService } from '../services/firebase/FirebaseAuthService';
 import { FirebaseUserRepository } from '../services/firebase/FirebaseUserRepository';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
+import { FirebaseChatRepository } from '../services/firebase/FirebaseChatRepository';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -13,6 +14,7 @@ interface AuthState {
     name?: string;
   } | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
 }
 
@@ -26,13 +28,13 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       user: null,
 
+      loginWithGoogle: async () => {
+        await FirebaseAuthService.loginWithGoogle();
+      },
+
       login: async (email: string, password: string) => {
         // Use Firebase Auth Adapter
         await FirebaseAuthService.login(email, password);
-
-        // Wait for store to update from listener before initializing data load
-        // Note: The ideal place to trigger data load is actually inside the auth state listener,
-        // but we can put a simplified trigger here or in App component.
       },
 
       logout: async () => {
@@ -73,5 +75,7 @@ useAuthStore.subscribe((state, prevState) => {
     unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(uid);
     // 3. Subscribe to tasks
     unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(uid);
+    // 4. Load Chat History
+    FirebaseChatRepository.loadHistory(uid);
   }
 });

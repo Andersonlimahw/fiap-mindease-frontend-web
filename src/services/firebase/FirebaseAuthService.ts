@@ -1,11 +1,16 @@
 import {
     signInWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
     signOut,
     onAuthStateChanged,
     User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
+
+// Initialize Google Provider
+const googleProvider = new GoogleAuthProvider();
 
 // Map Firebase User to local User
 const mapUser = (user: FirebaseUser | null) => {
@@ -27,13 +32,31 @@ export const FirebaseAuthService = {
             useAuthStore.setState({
                 isAuthenticated: !!user,
                 user,
-                isLoading: false // Assuming we might add this to the store later to prevent flash
+                isLoading: false
             });
         });
     },
 
     /**
-     * Login with Email and Password
+     * Login with Google
+     */
+    loginWithGoogle: async (): Promise<void> => {
+        try {
+            const userCredential = await signInWithPopup(auth, googleProvider);
+            const user = mapUser(userCredential.user);
+
+            useAuthStore.setState({
+                isAuthenticated: true,
+                user,
+            });
+        } catch (error) {
+            console.error('Google login error:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Login with Email and Password (kept for backward compatibility if needed)
      */
     login: async (email: string, password: string): Promise<void> => {
         try {
