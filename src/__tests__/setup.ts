@@ -54,6 +54,23 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(() => vi.fn()), // Return an unsubscribe function
 }));
 
+// Mock MindEase Services to prevent subscription errors
+vi.mock('../services/firebase/FirebaseUserRepository', () => ({
+  FirebaseUserRepository: {
+    loadPreferences: vi.fn(),
+    savePreferences: vi.fn(),
+    setupStoreSubscriptions: vi.fn(() => vi.fn()),
+  }
+}));
+
+vi.mock('../services/firebase/FirebaseChatRepository', () => ({
+  FirebaseChatRepository: {
+    loadHistory: vi.fn(),
+    addMessage: vi.fn(),
+    clearHistory: vi.fn(),
+  }
+}));
+
 // Mock crypto for UUIDs in Node
 if (typeof global.crypto === 'undefined' || !global.crypto.randomUUID) {
     Object.defineProperty(global, 'crypto', {
