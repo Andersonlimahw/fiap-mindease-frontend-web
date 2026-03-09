@@ -1,0 +1,11 @@
+<svg width="146" height="146" viewBox="0 0 146 146" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mindease_grad" x1="0" y1="0" x2="146" y2="146" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <!-- Stylized Leaf/Brain Icon based on the generated design -->
+  <path d="M73 10C40 10 15 45 15 85C15 110 35 130 60 135C65 136 70 135 73 130C76 135 81 136 86 135C111 130 131 110 131 85C131 45 106 10 73 10Z" fill="url(#mindease_grad)"/>
+  <path d="M73 25C95 25 116 50 116 85C116 105 103 120 86 120C82 120 78 118 73 115C68 118 64 120 60 120C43 120 30 105 30 85C30 50 51 25 73 25Z" fill="white" fill-opacity="0.2"/>
+</svg>

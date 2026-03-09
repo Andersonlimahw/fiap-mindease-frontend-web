@@ -8,6 +8,7 @@ import {
     query,
     orderBy,
     serverTimestamp,
+    deleteField,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Task } from '../../types/task';
@@ -103,7 +104,10 @@ export const FirebaseTaskRepository = {
         try {
             const taskRef = doc(getUserTasksCollection(userId), taskId);
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, expanded, ...dataToUpdate } = updates as any;
+            const { id, expanded, completedAt, ...rest } = updates as any;
+            const dataToUpdate: Record<string, unknown> = { ...rest };
+            // Firestore não aceita undefined — usa deleteField() para remover o campo
+            dataToUpdate.completedAt = completedAt !== undefined ? completedAt : deleteField();
             await updateDoc(taskRef, dataToUpdate);
         } catch (error) {
             console.error('Error updating task in Firebase:', error);

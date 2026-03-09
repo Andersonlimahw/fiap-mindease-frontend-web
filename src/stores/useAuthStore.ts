@@ -4,6 +4,8 @@ import { FirebaseUserRepository } from '../services/firebase/FirebaseUserReposit
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { FirebaseChatRepository } from '../services/firebase/FirebaseChatRepository';
 import { useTasksStore } from './useTasksStore';
+import { FirebaseMessagingService } from '../services/firebase/FirebaseMessagingService';
+import { useNotificationsStore } from './useNotificationsStore';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -82,10 +84,31 @@ useAuthStore.subscribe((state) => {
     
     // 4. Load Chat History
     FirebaseChatRepository.loadHistory(currentId);
+
+    // 5. Initialize Firebase Cloud Messaging
+    void (async () => {
+      try {
+        await FirebaseMessagingService.init(currentId);
+        useNotificationsStore.getState().setIsEnabled(true);
+      } catch (err) {
+        console.warn('useAuthStore: Failed to initialize Firebase Messaging:', err);
+      }
+    })();
   } else if (!currentId && lastId) {
     console.log('useAuthStore: User logged out, cleaning up');
+    const previousId = lastId;
     lastId = null;
     if (unsubscribeStore) unsubscribeStore();
     if (unsubscribeTasks) unsubscribeTasks();
+
+    // Cleanup Firebase Cloud Messaging
+    void (async () => {
+      try {
+        await FirebaseMessagingService.cleanup(previousId);
+      } catch (err) {
+        console.warn('useAuthStore: Failed to cleanup Firebase Messaging:', err);
+      }
+      useNotificationsStore.getState().setIsEnabled(false);
+    })();
   }
 });

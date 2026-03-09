@@ -14,6 +14,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((...args) => args[0]),
   orderBy: vi.fn(),
   serverTimestamp: vi.fn(() => ({ type: 'serverTimestamp' })),
+  deleteField: vi.fn(() => ({ type: 'deleteField' })),
 }));
 
 // Mock the firebase config to provide a mock db object
@@ -63,7 +64,20 @@ describe('FirebaseTaskRepository', () => {
     await FirebaseTaskRepository.updateTask(userId, task.id, updates);
 
     expect(collection).toHaveBeenCalledWith(db, 'users', userId, 'tasks');
-    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), updates);
+    expect(updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ completed: true }),
+    );
+  });
+
+  it('should use deleteField() for completedAt when uncompleting a task', async () => {
+    const updates = { completed: false, completedAt: undefined };
+    await FirebaseTaskRepository.updateTask(userId, task.id, updates);
+
+    expect(updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ completedAt: { type: 'deleteField' } }),
+    );
   });
 
   it('should call deleteDoc inside users/{userId}/tasks subcollection when deleting a task', async () => {

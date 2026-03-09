@@ -21,3 +21,5 @@ export type { ChatMessage } from './useChatStore';
 
 export { useFocusModeStore } from './useFocusModeStore';
 export type { AmbientSound } from './useFocusModeStore';
+
+export { useNotificationsStore } from './useNotificationsStore';

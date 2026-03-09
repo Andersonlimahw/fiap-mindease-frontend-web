@@ -6,10 +6,11 @@ import { Switch } from '@/app/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Separator } from '@/app/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { useNavigationStore, useAccessibilityStore, useThemeStore, useAuthStore } from '@/stores';
+import { useNavigationStore, useAccessibilityStore, useThemeStore, useAuthStore, useNotificationsStore } from '@/stores';
 import { Navigation } from '@/app/components/Navigation';
-import { LogOut, User, Palette, Accessibility, Eye } from 'lucide-react';
+import { LogOut, User, Palette, Accessibility, Eye, Bell } from 'lucide-react';
 import { toast } from 'sonner';
+import { FirebaseMessagingService } from '@/services/firebase/FirebaseMessagingService';
 
 interface SettingsScreenProps {
   onLogout?: () => void;
@@ -20,6 +21,30 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
   const { settings, updateSettings } = useAccessibilityStore();
   const { theme, setTheme } = useThemeStore();
   const { logout, user } = useAuthStore();
+  const { permissionStatus, isEnabled } = useNotificationsStore();
+
+  const handleEnableNotifications = async () => {
+    if (!user) return;
+
+    if (permissionStatus === 'unsupported') {
+      toast.error('Notificações não são suportadas neste navegador.');
+      return;
+    }
+
+    try {
+      await FirebaseMessagingService.init(user.id);
+      useNotificationsStore.getState().setIsEnabled(true);
+      useNotificationsStore.getState().setPermissionStatus(Notification.permission);
+      if (Notification.permission === 'granted') {
+        toast.success('Notificações habilitadas com sucesso!');
+      } else {
+        toast.warning('Permissão de notificação não concedida.');
+      }
+    } catch (err) {
+      console.warn('SettingsScreen: Failed to enable notifications:', err);
+      toast.error('Não foi possível habilitar as notificações.');
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -275,6 +300,69 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
                   <Label>Email</Label>
                   <p className="text-sm">{user?.email || 'N/A'}</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" aria-hidden="true" />
+                  Notificações
+                </CardTitle>
+                <CardDescription>
+                  Gerencie as notificações push do MindEase
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {permissionStatus === 'unsupported' ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Notificações push não são suportadas neste navegador.
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <Label>Status da permissão</Label>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
+                        {permissionStatus === 'loading'
+                          ? 'Verificando…'
+                          : permissionStatus === 'granted'
+                          ? 'Concedida'
+                          : permissionStatus === 'denied'
+                          ? 'Negada pelo navegador'
+                          : 'Não solicitada'}
+                      </p>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="notifications-toggle">
+                          Receber notificações
+                        </Label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {isEnabled
+                            ? 'Notificações push habilitadas para este dispositivo.'
+                            : 'Ative para receber alertas e lembretes.'}
+                        </p>
+                      </div>
+                      <Switch
+                        id="notifications-toggle"
+                        checked={isEnabled}
+                        disabled={permissionStatus === 'denied'}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            void handleEnableNotifications();
+                          }
+                        }}
+                        aria-label="Habilitar notificações push"
+                      />
+                    </div>
+                    {permissionStatus === 'denied' && (
+                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                        A permissão foi negada. Para habilitar, acesse as configurações do navegador.
+                      </p>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
 

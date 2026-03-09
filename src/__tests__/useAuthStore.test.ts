@@ -4,6 +4,7 @@ import { FirebaseAuthService } from '../services/firebase/FirebaseAuthService';
 import { FirebaseUserRepository } from '../services/firebase/FirebaseUserRepository';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { FirebaseChatRepository } from '../services/firebase/FirebaseChatRepository';
+import { FirebaseMessagingService } from '../services/firebase/FirebaseMessagingService';
 
 // Mock services
 vi.mock('../services/firebase/FirebaseAuthService', () => ({
@@ -31,6 +32,25 @@ vi.mock('../services/firebase/FirebaseTaskRepository', () => ({
 vi.mock('../services/firebase/FirebaseChatRepository', () => ({
   FirebaseChatRepository: {
     loadHistory: vi.fn(),
+  }
+}));
+
+vi.mock('../services/firebase/FirebaseMessagingService', () => ({
+  FirebaseMessagingService: {
+    init: vi.fn(() => Promise.resolve()),
+    cleanup: vi.fn(() => Promise.resolve()),
+  }
+}));
+
+vi.mock('../stores/useNotificationsStore', () => ({
+  useNotificationsStore: {
+    getState: vi.fn(() => ({
+      setIsEnabled: vi.fn(),
+      setPermissionStatus: vi.fn(),
+      setFcmToken: vi.fn(),
+    })),
+    setState: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
   }
 }));
 
@@ -94,5 +114,35 @@ describe('useAuthStore', () => {
     expect(FirebaseUserRepository.setupStoreSubscriptions).toHaveBeenCalledWith('user-123');
     expect(FirebaseTaskRepository.subscribeToTasks).toHaveBeenCalledWith('user-123', expect.any(Function));
     expect(FirebaseChatRepository.loadHistory).toHaveBeenCalledWith('user-123');
+  });
+
+  it('should call FirebaseMessagingService.init when user becomes authenticated', async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { id: 'user-789', email: 'messaging@test.com' }
+    });
+
+    // Aguarda o subscriber e a promise async interna resolverem
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(FirebaseMessagingService.init).toHaveBeenCalledWith('user-789');
+  });
+
+  it('should call FirebaseMessagingService.cleanup when user logs out', async () => {
+    // Autentica primeiro para registrar o lastId no subscriber
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { id: 'user-logout', email: 'logout@test.com' }
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    // Depois faz logout
+    useAuthStore.setState({
+      isAuthenticated: false,
+      user: null
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(FirebaseMessagingService.cleanup).toHaveBeenCalledWith('user-logout');
   });
 });

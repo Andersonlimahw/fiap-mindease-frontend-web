@@ -43,10 +43,31 @@ vi.mock('../services/ai/GeminiService', () => ({
   }
 }));
 
+vi.mock('../services/firebase/FirebaseMessagingService', () => ({
+  FirebaseMessagingService: {
+    init: vi.fn(() => Promise.resolve()),
+    cleanup: vi.fn(() => Promise.resolve()),
+  }
+}));
+
+vi.mock('../stores/useNotificationsStore', () => ({
+  useNotificationsStore: {
+    getState: vi.fn(() => ({
+      setIsEnabled: vi.fn(),
+      setPermissionStatus: vi.fn(),
+      setFcmToken: vi.fn(),
+    })),
+    setState: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  }
+}));
+
 // Mock the firebase config
 vi.mock('../config/firebase', () => ({
+    app: {},
     db: { type: 'mock-db' },
-    auth: { type: 'mock-auth' }
+    auth: { type: 'mock-auth' },
+    getMessagingInstance: vi.fn(() => Promise.resolve(null)),
   }));
 
 describe('useChatStore', () => {

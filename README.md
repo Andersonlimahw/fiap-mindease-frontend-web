@@ -1,10 +1,13 @@
 # 🧠 MindEase - Neuroadaptive Productivity Dashboard
 
-![MindEase Banner](https://via.placeholder.com/1200x400/4F46E5/FFFFFF?text=MindEase+-+Neuroadaptive+Productivity)
+![MindEase Logo](/assets/images/icons/Logo.png)
 
 **MindEase** is a fully accessible, neuroadaptive productivity web application. It is designed around the principles of neuroarchitecture and strict accessibility (WCAG 2.2 AA) to support users with different cognitive and visual needs.
 
 ---
+
+## Figma:
+[MindEase UI/UX](https://www.figma.com/design/p6jsQDxXRoS8ukHQ9a6Kff/MindEase-UI-UX?node-id=11-5253&t=VZfYF8xKgwRlcss0-1)
 
 ## 🏗️ Architecture & Technical Stack
 

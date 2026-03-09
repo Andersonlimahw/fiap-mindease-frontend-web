@@ -29,9 +29,12 @@ export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
-              <Brain className="h-6 w-6 text-white" aria-hidden="true" />
-            </div>
+            <img
+              src="/assets/images/icons/Logo.svg"
+              alt="MindEase Logo"
+              className="h-10 w-10"
+              aria-hidden="true"
+            />
             <span className="font-bold text-xl hidden sm:inline">MindEase</span>
           </div>
 

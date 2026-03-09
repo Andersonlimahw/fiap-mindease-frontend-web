@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,4 +19,30 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { app, auth, db };
+// Messaging is lazily resolved because isSupported() is async.
+// Use getMessagingInstance() instead of importing messaging directly.
+let _messaging: Messaging | null = null;
+let _messagingPromise: Promise<Messaging | null> | null = null;
+
+/**
+ * Returns the Firebase Messaging instance if supported by the current environment,
+ * or null if not supported (e.g. Safari without HTTPS, test environments).
+ * The result is cached after the first call.
+ */
+const getMessagingInstance = (): Promise<Messaging | null> => {
+    if (_messagingPromise) return _messagingPromise;
+
+    _messagingPromise = isSupported()
+        .then((supported) => {
+            if (supported) {
+                _messaging = getMessaging(app);
+                return _messaging;
+            }
+            return null;
+        })
+        .catch(() => null);
+
+    return _messagingPromise;
+};
+
+export { app, auth, db, getMessagingInstance };

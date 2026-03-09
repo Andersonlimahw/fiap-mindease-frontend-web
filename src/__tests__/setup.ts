@@ -52,13 +52,37 @@ vi.mock('firebase/firestore', () => ({
   orderBy: vi.fn(),
   limit: vi.fn(),
   onSnapshot: vi.fn(() => vi.fn()), // Return an unsubscribe function
+  serverTimestamp: vi.fn(() => ({ _serverTimestamp: true })),
+  deleteField: vi.fn(() => ({ _deleteField: true })),
 }));
 
 // Mock the firebase config
 vi.mock('../config/firebase', () => ({
+    app: {},
     db: { type: 'mock-db' },
-    auth: { type: 'mock-auth' }
+    auth: { type: 'mock-auth' },
+    getMessagingInstance: vi.fn(() => Promise.resolve(null)),
 }));
+
+vi.mock('firebase/messaging', () => ({
+  getMessaging: vi.fn(() => ({})),
+  isSupported: vi.fn(() => Promise.resolve(false)), // false em ambiente de teste (jsdom)
+  getToken: vi.fn(() => Promise.resolve('mock-fcm-token')),
+  onMessage: vi.fn(() => vi.fn()), // retorna unsubscribe
+  deleteToken: vi.fn(() => Promise.resolve(true)),
+}));
+
+// Mock Notification API
+if (typeof window.Notification === 'undefined') {
+  Object.defineProperty(window, 'Notification', {
+    value: {
+      permission: 'default' as NotificationPermission,
+      requestPermission: vi.fn(() => Promise.resolve('granted' as NotificationPermission)),
+    },
+    configurable: true,
+    writable: true,
+  });
+}
 
 // Mock crypto for UUIDs in Node
 if (typeof global.crypto === 'undefined' || !global.crypto.randomUUID) {
