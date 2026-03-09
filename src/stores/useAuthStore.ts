@@ -1,48 +1,91 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { FirebaseAuthService } from '../services/firebase/FirebaseAuthService';
+import { FirebaseUserRepository } from '../services/firebase/FirebaseUserRepository';
+import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
+import { FirebaseChatRepository } from '../services/firebase/FirebaseChatRepository';
+import { useTasksStore } from './useTasksStore';
 
 interface AuthState {
   isAuthenticated: boolean;
+  isLoading?: boolean;
   user: {
+    id: string; // Alterado de uid para id para seguir o padrão Mobile
     email: string;
     name?: string;
+    photoUrl?: string;
   } | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
 }
 
+// Global subscriptions cleanup
+let unsubscribeStore: () => void;
+let unsubscribeTasks: () => void;
+
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      isAuthenticated: false,
-      user: null,
+  (set) => ({
+    isAuthenticated: false,
+    isLoading: true,
+    user: null,
 
-      login: async (email: string, _password: string) => {
-        // Mock authentication - Replace with real API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        set({
-          isAuthenticated: true,
-          user: {
-            email,
-            name: email.split('@')[0],
-          },
-        });
-      },
+    loginWithGoogle: async () => {
+      await FirebaseAuthService.loginWithGoogle();
+    },
 
-      logout: () => {
-        set({
-          isAuthenticated: false,
-          user: null,
-        });
-      },
-    }),
-    {
-      name: 'mindease-auth',
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        user: state.user,
-      }),
-    }
-  )
+    login: async (email: string, password: string) => {
+      await FirebaseAuthService.login(email, password);
+    },
+
+    logout: async () => {
+      await FirebaseAuthService.logout();
+
+      // Cleanup subscriptions
+      if (unsubscribeStore) unsubscribeStore();
+      if (unsubscribeTasks) unsubscribeTasks();
+
+      set({
+        isAuthenticated: false,
+        user: null,
+      });
+    },
+  })
 );
+
+
+// Initialize remote listener to sync Firebase user state with Zustand
+FirebaseAuthService.init();
+
+// Use a more robust check for authentication status
+let lastId: string | null = null;
+
+useAuthStore.subscribe((state) => {
+  const currentId = state.isAuthenticated ? state.user?.id : null;
+  
+  if (currentId && currentId !== lastId) {
+    console.log('useAuthStore: User authenticated, initializing data for', currentId);
+    lastId = currentId;
+    
+    // 1. Load User Preferences
+    FirebaseUserRepository.loadPreferences(currentId);
+    
+    // 2. Setup save subscriptions for subsequent changes
+    if (unsubscribeStore) unsubscribeStore();
+    unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(currentId);
+    
+    // 3. Subscribe to tasks
+    if (unsubscribeTasks) unsubscribeTasks();
+    unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(currentId, (tasks) => {
+        // Use the intelligent merge logic
+        useTasksStore.getState().syncFromFirebase(tasks);
+    });
+    
+    // 4. Load Chat History
+    FirebaseChatRepository.loadHistory(currentId);
+  } else if (!currentId && lastId) {
+    console.log('useAuthStore: User logged out, cleaning up');
+    lastId = null;
+    if (unsubscribeStore) unsubscribeStore();
+    if (unsubscribeTasks) unsubscribeTasks();
+  }
+});

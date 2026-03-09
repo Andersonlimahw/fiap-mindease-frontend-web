@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 export interface AccessibilitySettings {
   fontSize: number; // 12-24px
@@ -30,13 +29,14 @@ interface AccessibilityState {
 }
 
 export const useAccessibilityStore = create<AccessibilityState>()(
-  persist(
-    (set, get) => ({
-      settings: defaultSettings,
+  (set, get) => ({
+    settings: defaultSettings,
 
-      updateSettings: (newSettings: Partial<AccessibilitySettings>) => {
-        const updatedSettings = { ...get().settings, ...newSettings };
-        
+    updateSettings: (newSettings: Partial<AccessibilitySettings>) => {
+      const updatedSettings = { ...get().settings, ...newSettings };
+      
+      // Apply styles if document is available
+      if (typeof document !== 'undefined') {
         // Apply CSS variables
         document.documentElement.style.setProperty(
           '--font-size-base',
@@ -63,49 +63,22 @@ export const useAccessibilityStore = create<AccessibilityState>()(
           'data-color-blind',
           updatedSettings.colorBlindMode
         );
+      }
 
-        set({ settings: updatedSettings });
-      },
+      set({ settings: updatedSettings });
+    },
 
-      resetSettings: () => {
-        set({ settings: defaultSettings });
-        
+    resetSettings: () => {
+      set({ settings: defaultSettings });
+      
+      if (typeof document !== 'undefined') {
         // Reset CSS variables
         document.documentElement.style.setProperty('--font-size-base', '16px');
         document.documentElement.style.setProperty('--line-height-base', '1.5');
         document.documentElement.style.setProperty('--letter-spacing-base', '0');
         document.documentElement.classList.remove('reduce-motion');
         document.documentElement.setAttribute('data-color-blind', 'none');
-      },
-    }),
-    {
-      name: 'mindease-accessibility',
-    }
-  )
-);
-
-// Initialize accessibility settings on load
-if (typeof window !== 'undefined') {
-  const stored = localStorage.getItem('mindease-accessibility');
-  if (stored) {
-    try {
-      const { state } = JSON.parse(stored);
-      if (state?.settings) {
-        const s = state.settings;
-        document.documentElement.style.setProperty('--font-size-base', `${s.fontSize}px`);
-        document.documentElement.style.setProperty('--line-height-base', `${s.lineHeight}`);
-        document.documentElement.style.setProperty('--letter-spacing-base', `${s.letterSpacing}em`);
-        
-        if (s.reduceMotion) {
-          document.documentElement.classList.add('reduce-motion');
-        }
-        
-        if (s.colorBlindMode && s.colorBlindMode !== 'none') {
-          document.documentElement.setAttribute('data-color-blind', s.colorBlindMode);
-        }
       }
-    } catch (e) {
-      console.error('Failed to parse accessibility settings from localStorage', e);
-    }
-  }
-}
+    },
+  })
+);

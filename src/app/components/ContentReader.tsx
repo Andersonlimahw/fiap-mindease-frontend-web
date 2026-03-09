@@ -107,7 +107,7 @@ export function ContentReader() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <Tabs value={viewMode} onValueChange={(value: any) => setViewMode(value)}>
+                <Tabs value={viewMode} onValueChange={(value: string) => setViewMode(value as 'summary' | 'detailed')}>
                   <TabsList>
                     <TabsTrigger value="summary">
                       Resumido ({sampleContent.summary.readTime})

@@ -9,3 +9,12 @@ yarn-error.log
 pnpm-debug.log
 .vite
 coverage/
+
+## AI Agents
+AGENTS.md
+agents
+plans
+skills
+prompt-base.toon
+.gemini
+
