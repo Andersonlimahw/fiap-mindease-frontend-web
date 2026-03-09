@@ -9,6 +9,9 @@ import {
 import { db } from '../../config/firebase';
 import { Task } from '../../types/task';
 
+const COLLECTION_NAME = 'tasks';
+const USERS_COLLECTION = 'users';
+
 export const FirebaseTaskRepository = {
     /**
      * Listen to user tasks in real-time
@@ -17,7 +20,7 @@ export const FirebaseTaskRepository = {
         if (!userId) return () => { };
 
         // Point to the user-specific subcollection
-        const tasksRef = collection(db, 'users', userId, 'tasks');
+        const tasksRef = collection(db, USERS_COLLECTION, userId, COLLECTION_NAME);
 
         return onSnapshot(tasksRef, (snapshot) => {
             const tasks: Task[] = [];
@@ -37,8 +40,8 @@ export const FirebaseTaskRepository = {
     addTask: async (userId: string, task: Task) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Adding task at users/${userId}/tasks/${task.id}`);
-            const taskRef = doc(db, 'users', userId, 'tasks', task.id);
+            console.log(`FirebaseTaskRepository: Adding task at ${USERS_COLLECTION}/${userId}/${COLLECTION_NAME}/${task.id}`);
+            const taskRef = doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, task.id);
             // Ensure no undefined fields are sent to Firestore
             const taskToSave = JSON.parse(JSON.stringify(task));
             await setDoc(taskRef, taskToSave);
@@ -55,8 +58,8 @@ export const FirebaseTaskRepository = {
     updateTask: async (userId: string, taskId: string, updates: Partial<Task>) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Updating task users/${userId}/tasks/${taskId}`);
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            console.log(`FirebaseTaskRepository: Updating task ${USERS_COLLECTION}/${userId}/${COLLECTION_NAME}/${taskId}`);
+            const taskRef = doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, taskId);
             // Ensure no undefined fields
             const dataToUpdate = JSON.parse(JSON.stringify(updates));
             await updateDoc(taskRef, dataToUpdate);
@@ -72,8 +75,8 @@ export const FirebaseTaskRepository = {
     deleteTask: async (userId: string, taskId: string) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Deleting task users/${userId}/tasks/${taskId}`);
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            console.log(`FirebaseTaskRepository: Deleting task ${USERS_COLLECTION}/${userId}/${COLLECTION_NAME}/${taskId}`);
+            const taskRef = doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, taskId);
             await deleteDoc(taskRef);
         } catch (error) {
             console.error('Error deleting task in Firebase:', error);

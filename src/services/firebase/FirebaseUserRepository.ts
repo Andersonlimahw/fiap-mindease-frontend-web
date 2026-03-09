@@ -29,6 +29,10 @@ interface UserPreferences {
     reduceMotion?: boolean;
 }
 
+const USERS_COLLECTION = 'users';
+const PREFERENCES_COLLECTION = 'preferences';
+const SETTINGS_DOCUMENT = 'settings';
+
 export const FirebaseUserRepository = {
     /**
      * Save user preferences to Firestore
@@ -37,7 +41,7 @@ export const FirebaseUserRepository = {
         if (!userId) return;
 
         try {
-            const userRef = doc(db, 'users', userId, 'preferences', 'settings');
+            const userRef = doc(db, USERS_COLLECTION, userId, PREFERENCES_COLLECTION, SETTINGS_DOCUMENT);
             await setDoc(userRef, preferences, { merge: true });
         } catch (error) {
             console.error('Error saving user preferences:', error);
@@ -51,7 +55,7 @@ export const FirebaseUserRepository = {
         if (!userId) return;
 
         try {
-            const userRef = doc(db, 'users', userId, 'preferences', 'settings');
+            const userRef = doc(db, USERS_COLLECTION, userId, PREFERENCES_COLLECTION, SETTINGS_DOCUMENT);
             const docSnap = await getDoc(userRef);
 
             if (docSnap.exists()) {

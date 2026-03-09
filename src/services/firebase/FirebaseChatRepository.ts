@@ -11,6 +11,9 @@ import {
 import { db } from '../../config/firebase';
 import { ChatMessage, useChatStore } from '../../stores/useChatStore';
 
+const COLLECTION_NAME = 'chats';
+const USERS_COLLECTION = 'users';
+
 export const FirebaseChatRepository = {
     /**
      * Load recent chat history
@@ -19,7 +22,7 @@ export const FirebaseChatRepository = {
         if (!userId) return;
 
         try {
-            const messagesRef = collection(db, 'users', userId, 'chats');
+            const messagesRef = collection(db, USERS_COLLECTION, userId, COLLECTION_NAME);
             const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(50));
 
             const snapshot = await getDocs(q);
@@ -42,7 +45,7 @@ export const FirebaseChatRepository = {
     addMessage: async (userId: string, message: ChatMessage) => {
         if (!userId) return;
         try {
-            const msgRef = doc(db, 'users', userId, 'chats', message.id);
+            const msgRef = doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, message.id);
             await setDoc(msgRef, message);
         } catch (error) {
             console.error('Error adding chat message to Firebase:', error);
@@ -55,11 +58,11 @@ export const FirebaseChatRepository = {
     clearHistory: async (userId: string) => {
         if (!userId) return;
         try {
-            const messagesRef = collection(db, 'users', userId, 'chats');
+            const messagesRef = collection(db, USERS_COLLECTION, userId, COLLECTION_NAME);
             const snapshot = await getDocs(messagesRef);
 
             const deletePromises = snapshot.docs.map(document =>
-                deleteDoc(doc(db, 'users', userId, 'chats', document.id))
+                deleteDoc(doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, document.id))
             );
 
             await Promise.all(deletePromises);
