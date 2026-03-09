@@ -1,34 +1,23 @@
-import { useEffect, useState } from 'react';
-import { useThemeStore, useAccessibilityStore } from '@/stores';
+import { useEffect } from 'react';
+import { useThemeStore, useAccessibilityStore, useAuthStore } from '@/stores';
 
 interface StoreInitializerProps {
   children: React.ReactNode;
 }
 
 /**
- * StoreInitializer ensures all Zustand stores are properly hydrated
- * from localStorage before rendering the app.
+ * StoreInitializer ensures initial state and settings are applied
+ * before rendering the app.
  */
 export function StoreInitializer({ children }: StoreInitializerProps) {
-  const [isHydrated, setIsHydrated] = useState(false);
-  
-  useEffect(() => {
-    // Give Zustand persist middleware time to hydrate from localStorage
-    // This prevents the "Context not found" error by ensuring stores are ready
-    const timer = setTimeout(() => {
-      setIsHydrated(true);
-    }, 50); // Small delay to ensure hydration completes
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Apply theme and accessibility settings after hydration
+  const isLoading = useAuthStore((state) => state.isLoading);
   const theme = useThemeStore((state) => state.theme);
   const settings = useAccessibilityStore((state) => state.settings);
 
+  // Apply theme and accessibility settings to DOM
   useEffect(() => {
-    if (isHydrated) {
-      // Ensure theme is applied to DOM
+    // Ensure theme is applied to DOM
+    if (typeof document !== 'undefined') {
       document.documentElement.classList.remove('light', 'dark', 'high-contrast');
       document.documentElement.classList.add(theme);
 
@@ -49,10 +38,10 @@ export function StoreInitializer({ children }: StoreInitializerProps) {
         document.documentElement.setAttribute('data-color-blind', 'none');
       }
     }
-  }, [isHydrated, theme, settings]);
+  }, [theme, settings]);
 
-  // Show loading state while hydrating
-  if (!isHydrated) {
+  // Show loading state while Firebase auth is initializing
+  if (isLoading !== false) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center space-y-4">

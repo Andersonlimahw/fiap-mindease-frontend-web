@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { usePomodoroStore } from '../../stores/usePomodoroStore';
 import { useThemeStore } from '../../stores/useThemeStore';
@@ -29,34 +29,32 @@ interface UserPreferences {
     reduceMotion?: boolean;
 }
 
-const USERS_COLLECTION = 'users';
-const PREFERENCES_COLLECTION = 'preferences';
-const SETTINGS_DOCUMENT = 'settings';
+const COLLECTION_NAME = 'user_preferences';
 
 export const FirebaseUserRepository = {
     /**
-     * Save user preferences to Firestore
+     * Save user preferences — document ID is the userId
      */
     savePreferences: async (userId: string, preferences: Partial<UserPreferences>) => {
         if (!userId) return;
 
         try {
-            const userRef = doc(db, USERS_COLLECTION, userId, PREFERENCES_COLLECTION, SETTINGS_DOCUMENT);
-            await setDoc(userRef, preferences, { merge: true });
+            const prefRef = doc(db, COLLECTION_NAME, userId);
+            await setDoc(prefRef, preferences, { merge: true });
         } catch (error) {
             console.error('Error saving user preferences:', error);
         }
     },
 
     /**
-     * Load user preferences from Firestore and sync with Zustand stores
+     * Load user preferences and sync with Zustand stores
      */
     loadPreferences: async (userId: string) => {
         if (!userId) return;
 
         try {
-            const userRef = doc(db, USERS_COLLECTION, userId, PREFERENCES_COLLECTION, SETTINGS_DOCUMENT);
-            const docSnap = await getDoc(userRef);
+            const prefRef = doc(db, COLLECTION_NAME, userId);
+            const docSnap = await getDoc(prefRef);
 
             if (docSnap.exists()) {
                 const data = docSnap.data() as UserPreferences;
@@ -107,7 +105,6 @@ export const FirebaseUserRepository = {
 
         // Subscribe to Pomodoro settings changes
         const unsubPomodoro = usePomodoroStore.subscribe((state, prevState) => {
-            // Only save if settings or statistics changed
             if (
                 state.focusDuration !== prevState.focusDuration ||
                 state.shortBreakDuration !== prevState.shortBreakDuration ||
@@ -146,9 +143,7 @@ export const FirebaseUserRepository = {
 
         // Subscribe to Theme changes
         const unsubTheme = useThemeStore.subscribe((state, prevState) => {
-            if (
-                state.theme !== prevState.theme
-            ) {
+            if (state.theme !== prevState.theme) {
                 FirebaseUserRepository.savePreferences(userId, {
                     theme: state.theme
                 });

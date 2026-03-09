@@ -12,13 +12,19 @@ import { useAuthStore } from '../../stores/useAuthStore';
 // Initialize Google Provider
 const googleProvider = new GoogleAuthProvider();
 
-// Map Firebase User to local User
+// Map Firebase User to local User following Mobile pattern
 const mapUser = (user: FirebaseUser | null) => {
     if (!user || !user.email) return null;
+    
+    // Seguindo o padrão Mobile: id mapeia diretamente para o uid do FirebaseUser
+    // Ex: rWXMMLXS8DXD7mQZRN7LcspCoUq2
+    const id = user.uid;
+
     return {
-        uid: user.uid,
+        id: id,
         email: user.email,
         name: user.displayName || user.email.split('@')[0],
+        photoUrl: user.photoURL || undefined,
     };
 };
 
@@ -56,7 +62,7 @@ export const FirebaseAuthService = {
     },
 
     /**
-     * Login with Email and Password (kept for backward compatibility if needed)
+     * Login with Email and Password
      */
     login: async (email: string, password: string): Promise<void> => {
         try {

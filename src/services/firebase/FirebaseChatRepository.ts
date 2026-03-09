@@ -6,24 +6,29 @@ import {
     query,
     orderBy,
     limit,
-    deleteDoc
+    deleteDoc,
+    where
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { ChatMessage, useChatStore } from '../../stores/useChatStore';
 
 const COLLECTION_NAME = 'chats';
-const USERS_COLLECTION = 'users';
 
 export const FirebaseChatRepository = {
     /**
-     * Load recent chat history
+     * Load recent chat history from root 'chats' collection
      */
     loadHistory: async (userId: string) => {
         if (!userId) return;
 
         try {
-            const messagesRef = collection(db, USERS_COLLECTION, userId, COLLECTION_NAME);
-            const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(50));
+            const messagesRef = collection(db, COLLECTION_NAME);
+            const q = query(
+                messagesRef,
+                where('userId', '==', userId),
+                orderBy('timestamp', 'desc'),
+                limit(50)
+            );
 
             const snapshot = await getDocs(q);
             const messages: ChatMessage[] = [];
@@ -40,13 +45,13 @@ export const FirebaseChatRepository = {
     },
 
     /**
-     * Add a single message
+     * Add a single message to root 'chats' collection with userId field
      */
     addMessage: async (userId: string, message: ChatMessage) => {
         if (!userId) return;
         try {
-            const msgRef = doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, message.id);
-            await setDoc(msgRef, message);
+            const msgRef = doc(db, COLLECTION_NAME, message.id);
+            await setDoc(msgRef, { ...message, userId });
         } catch (error) {
             console.error('Error adding chat message to Firebase:', error);
         }
@@ -58,11 +63,12 @@ export const FirebaseChatRepository = {
     clearHistory: async (userId: string) => {
         if (!userId) return;
         try {
-            const messagesRef = collection(db, USERS_COLLECTION, userId, COLLECTION_NAME);
-            const snapshot = await getDocs(messagesRef);
+            const messagesRef = collection(db, COLLECTION_NAME);
+            const q = query(messagesRef, where('userId', '==', userId));
+            const snapshot = await getDocs(q);
 
             const deletePromises = snapshot.docs.map(document =>
-                deleteDoc(doc(db, USERS_COLLECTION, userId, COLLECTION_NAME, document.id))
+                deleteDoc(doc(db, COLLECTION_NAME, document.id))
             );
 
             await Promise.all(deletePromises);

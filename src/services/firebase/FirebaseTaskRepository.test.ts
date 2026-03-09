@@ -11,6 +11,10 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn(),
   deleteDoc: vi.fn(),
   onSnapshot: vi.fn(() => vi.fn()),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  serverTimestamp: vi.fn(() => ({ type: 'serverTimestamp' })),
 }));
 
 // Mock the firebase config to provide a mock db object
@@ -36,25 +40,37 @@ describe('FirebaseTaskRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('should call setDoc when adding a task', async () => {
+  it('should call setDoc when adding a task to the root tasks collection', async () => {
     await FirebaseTaskRepository.addTask(userId, task);
-    
-    expect(doc).toHaveBeenCalledWith(db, 'users', userId, 'tasks', task.id);
-    expect(setDoc).toHaveBeenCalled();
+
+    expect(doc).toHaveBeenCalledWith(db, 'tasks', task.id);
+    // id and expanded should NOT be stored; createdAt should be serverTimestamp()
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId,
+        title: task.title,
+        createdAt: { type: 'serverTimestamp' },
+      }),
+    );
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ id: task.id }),
+    );
   });
 
-  it('should call updateDoc when updating a task', async () => {
+  it('should call updateDoc when updating a task in the root tasks collection', async () => {
     const updates = { completed: true };
     await FirebaseTaskRepository.updateTask(userId, task.id, updates);
     
-    expect(doc).toHaveBeenCalledWith(db, 'users', userId, 'tasks', task.id);
-    expect(updateDoc).toHaveBeenCalled();
+    expect(doc).toHaveBeenCalledWith(db, 'tasks', task.id);
+    expect(updateDoc).toHaveBeenCalledWith(expect.anything(), updates);
   });
 
-  it('should call deleteDoc when deleting a task', async () => {
+  it('should call deleteDoc when deleting a task in the root tasks collection', async () => {
     await FirebaseTaskRepository.deleteTask(userId, task.id);
     
-    expect(doc).toHaveBeenCalledWith(db, 'users', userId, 'tasks', task.id);
-    expect(deleteDoc).toHaveBeenCalled();
+    expect(doc).toHaveBeenCalledWith(db, 'tasks', task.id);
+    expect(deleteDoc).toHaveBeenCalledWith(expect.anything());
   });
 });

@@ -14,13 +14,40 @@ vi.mock('../services/firebase/FirebaseTaskRepository', () => ({
   }
 }));
 
+// Mock repositories to avoid circular dependency issues during store init
+vi.mock('../services/firebase/FirebaseChatRepository', () => ({
+    FirebaseChatRepository: {
+        loadHistory: vi.fn(),
+        addMessage: vi.fn(),
+    }
+}));
+
+vi.mock('../services/firebase/FirebaseUserRepository', () => ({
+    FirebaseUserRepository: {
+        loadPreferences: vi.fn(),
+        setupStoreSubscriptions: vi.fn(() => vi.fn()),
+    }
+}));
+
+vi.mock('../services/firebase/FirebaseAuthService', () => ({
+    FirebaseAuthService: {
+        init: vi.fn(),
+    }
+}));
+
+// Mock the firebase config
+vi.mock('../config/firebase', () => ({
+    db: { type: 'mock-db' },
+    auth: { type: 'mock-auth' }
+}));
+
 describe('useTasksStore', () => {
   beforeEach(() => {
     // Reset Zustand store
     useTasksStore.setState({ tasks: [], error: null, isLoading: false });
     // Mock authenticated user
     useAuthStore.setState({
-      user: { uid: 'user-123', email: 'test@test.com' },
+      user: { id: 'user-123', email: 'test@test.com' },
       isAuthenticated: true
     });
     vi.clearAllMocks();

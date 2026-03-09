@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
 import { useAuthStore } from './useAuthStore';
 import { Task, SubTask } from '../types/task';
@@ -22,7 +21,7 @@ interface TasksState {
   syncFromFirebase: (remoteTasks: Task[]) => void;
 }
 
-// Fallback UUID for non-secure contexts
+// Fallback UUID for environments where crypto.randomUUID might not be available
 const generateId = () => {
     try {
         return crypto.randomUUID();
@@ -32,239 +31,232 @@ const generateId = () => {
 };
 
 export const useTasksStore = create<TasksState>()(
-  persist(
-    (set, get) => ({
-      tasks: [],
-      isLoading: false,
-      error: null,
+  (set, get) => ({
+    tasks: [],
+    isLoading: false,
+    error: null,
 
-      setLoading: (isLoading) => set({ isLoading }),
-      setError: (error) => set({ error }),
-      setTasks: (tasks) => set({ tasks }),
+    setLoading: (isLoading) => set({ isLoading }),
+    setError: (error) => set({ error }),
+    setTasks: (tasks) => set({ tasks }),
 
-      /**
-       * Intelligently merges remote tasks with local state.
-       * This prevents "jumping" UI where local optimistic updates are
-       * temporarily overwritten by stale remote data before the remote catch up.
-       */
-      syncFromFirebase: (remoteTasks) => {
-        const localTasks = get().tasks;
-        
-        // Use a Map for O(1) lookups
-        const taskMap = new Map<string, Task>();
-        
-        // Add remote tasks first
-        remoteTasks.forEach(task => taskMap.set(task.id, task));
-        
-        // If a local task doesn't exist in remote, it might be a new optimistic task
-        // or it was just deleted. For simplicity, we trust the remote source of truth
-        // for existing IDs, but keep local tasks that aren't in remote yet.
-        // Actually, since we use onSnapshot, remote IS the source of truth.
-        
-        set({ tasks: remoteTasks });
-      },
+    /**
+     * Merge remote tasks with local state, preserving optimistic updates
+     * that haven't been confirmed by Firebase yet.
+     */
+    syncFromFirebase: (remoteTasks) => {
+      const localTasks = get().tasks;
+      const remoteIds = new Set(remoteTasks.map(t => t.id));
 
-      toggleExpanded: (id) => {
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === id ? { ...task, expanded: !task.expanded } : task
-          ),
-        }));
-      },
+      // Keep local-only tasks (optimistic updates not yet confirmed by Firebase)
+      const pendingLocal = localTasks.filter(t => !remoteIds.has(t.id));
 
-      addTask: async (task) => {
-        set({ error: null });
-        const newTask: Task = {
-          ...task,
-          id: generateId(),
-          createdAt: new Date().toISOString(),
-        };
-        
-        // Optimistic UI update
-        set((state) => ({ tasks: [newTask, ...state.tasks] }));
+      set({ tasks: [...remoteTasks, ...pendingLocal] });
+    },
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid) {
-              await FirebaseTaskRepository.addTask(user.uid, newTask);
-            } else {
-                console.warn('addTask: No user authenticated');
-            }
-        } catch (e: any) {
-            console.error('addTask failed:', e);
-            set({ error: e.message || 'Error adding task' });
-            // Rollback on hard failure
-            set((state) => ({ tasks: state.tasks.filter(t => t.id !== newTask.id) }));
-        }
-      },
+    toggleExpanded: (id) => {
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === id ? { ...task, expanded: !task.expanded } : task
+        ),
+      }));
+    },
 
-      updateTask: async (id, updates) => {
-        set({ error: null });
-        // Optimistic UI update
-        set((state) => ({
-          tasks: state.tasks.map((task) =>
-            task.id === id ? { ...task, ...updates } : task
-          ),
-        }));
+    addTask: async (task) => {
+      set({ error: null });
+      const newTask: Task = {
+        ...task,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid) {
-              await FirebaseTaskRepository.updateTask(user.uid, id, updates);
-            }
-        } catch (e: any) {
-            console.error('updateTask failed:', e);
-            set({ error: e.message || 'Error updating task' });
-        }
-      },
+      // Optimistic UI update
+      set((state) => ({ tasks: [newTask, ...state.tasks] }));
 
-      deleteTask: async (id) => {
-        set({ error: null });
-        const previousTasks = get().tasks;
-        
-        // Optimistic UI update
-        set((state) => ({
-          tasks: state.tasks.filter((task) => task.id !== id),
-        }));
+      try {
+          const user = useAuthStore.getState().user;
+          if (!user?.id) {
+              console.warn('addTask: No user authenticated');
+              set({ error: 'Usuário não autenticado.' });
+              // Rollback since we don't want local-only data anymore
+              set((state) => ({ tasks: state.tasks.filter(t => t.id !== newTask.id) }));
+              return;
+          }
+          await FirebaseTaskRepository.addTask(user.id, newTask);
+      } catch (e: any) {
+          console.error('addTask failed:', e);
+          const message = e?.code === 'permission-denied'
+              ? 'Sem permissão para salvar no Firebase. Verifique as regras do Firestore.'
+              : (e.message || 'Erro ao adicionar tarefa');
+          set({ error: message });
+          // Rollback on hard failure
+          set((state) => ({ tasks: state.tasks.filter(t => t.id !== newTask.id) }));
+      }
+    },
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid) {
-              await FirebaseTaskRepository.deleteTask(user.uid, id);
-            }
-        } catch (e: any) {
-            console.error('deleteTask failed:', e);
-            set({ error: e.message || 'Error deleting task' });
-            // Rollback
-            set({ tasks: previousTasks });
-        }
-      },
+    updateTask: async (id, updates) => {
+      set({ error: null });
+      // Optimistic UI update
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === id ? { ...task, ...updates } : task
+        ),
+      }));
 
-      toggleTask: async (id) => {
-        set({ error: null });
-        const task = get().tasks.find(t => t.id === id);
-        if (!task) return;
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id) {
+            await FirebaseTaskRepository.updateTask(user.id, id, updates);
+          }
+      } catch (e: any) {
+          console.error('updateTask failed:', e);
+          set({ error: e.message || 'Error updating task' });
+      }
+    },
 
-        const updates = {
-          completed: !task.completed,
-          completedAt: !task.completed ? new Date().toISOString() : undefined,
-        };
+    deleteTask: async (id) => {
+      set({ error: null });
+      const previousTasks = get().tasks;
+      
+      // Optimistic UI update
+      set((state) => ({
+        tasks: state.tasks.filter((task) => task.id !== id),
+      }));
 
-        // Optimistic UI update
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          ),
-        }));
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id) {
+            await FirebaseTaskRepository.deleteTask(user.id, id);
+          }
+      } catch (e: any) {
+          console.error('deleteTask failed:', e);
+          set({ error: e.message || 'Error deleting task' });
+          // Rollback
+          set({ tasks: previousTasks });
+      }
+    },
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid) {
-              await FirebaseTaskRepository.updateTask(user.uid, id, updates);
-            }
-        } catch (e: any) {
-             console.error('toggleTask failed:', e);
-             set({ error: e.message || 'Error toggling task' });
-        }
-      },
+    toggleTask: async (id) => {
+      set({ error: null });
+      const task = get().tasks.find(t => t.id === id);
+      if (!task) return;
 
-      addSubTask: async (taskId, subTask) => {
-        set({ error: null });
-        const newSubTask: SubTask = {
-          ...subTask,
-          id: generateId(),
-        };
+      const updates = {
+        completed: !task.completed,
+        completedAt: !task.completed ? new Date().toISOString() : undefined,
+      };
 
-        let updatedTask: Task | undefined;
+      // Optimistic UI update
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      }));
 
-        // Optimistic UI update
-        set((state) => {
-          const newTasks = state.tasks.map((task) => {
-            if (task.id === taskId) {
-              updatedTask = { ...task, subTasks: [...(task.subTasks || []), newSubTask] };
-              return updatedTask;
-            }
-            return task;
-          });
-          return { tasks: newTasks };
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id) {
+            await FirebaseTaskRepository.updateTask(user.id, id, updates);
+          }
+      } catch (e: any) {
+           console.error('toggleTask failed:', e);
+           set({ error: e.message || 'Error toggling task' });
+      }
+    },
+
+    addSubTask: async (taskId, subTask) => {
+      set({ error: null });
+      const newSubTask: SubTask = {
+        ...subTask,
+        id: generateId(),
+      };
+
+      let updatedTask: Task | undefined;
+
+      // Optimistic UI update
+      set((state) => {
+        const newTasks = state.tasks.map((task) => {
+          if (task.id === taskId) {
+            updatedTask = { ...task, subTasks: [...(task.subTasks || []), newSubTask] };
+            return updatedTask;
+          }
+          return task;
         });
+        return { tasks: newTasks };
+      });
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid && updatedTask) {
-              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
-            }
-        } catch (e: any) {
-            console.error('addSubTask failed:', e);
-            set({ error: e.message || 'Error adding subtask' });
-        }
-      },
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id && updatedTask) {
+            await FirebaseTaskRepository.updateTask(user.id, taskId, { subTasks: updatedTask.subTasks });
+          }
+      } catch (e: any) {
+          console.error('addSubTask failed:', e);
+          set({ error: e.message || 'Error adding subtask' });
+      }
+    },
 
-      toggleSubTask: async (taskId, subTaskId) => {
-        set({ error: null });
-        let updatedTask: Task | undefined;
+    toggleSubTask: async (taskId, subTaskId) => {
+      set({ error: null });
+      let updatedTask: Task | undefined;
 
-        // Optimistic UI update
-        set((state) => {
-          const newTasks = state.tasks.map((task) => {
-            if (task.id === taskId) {
-              updatedTask = {
-                ...task,
-                subTasks: (task.subTasks || []).map((st) =>
-                  st.id === subTaskId ? { ...st, completed: !st.completed } : st
-                ),
-              };
-              return updatedTask;
-            }
-            return task;
-          });
-          return { tasks: newTasks };
+      // Optimistic UI update
+      set((state) => {
+        const newTasks = state.tasks.map((task) => {
+          if (task.id === taskId) {
+            updatedTask = {
+              ...task,
+              subTasks: (task.subTasks || []).map((st) =>
+                st.id === subTaskId ? { ...st, completed: !st.completed } : st
+              ),
+            };
+            return updatedTask;
+          }
+          return task;
         });
+        return { tasks: newTasks };
+      });
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid && updatedTask) {
-              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
-            }
-        } catch (e: any) {
-             console.error('toggleSubTask failed:', e);
-             set({ error: e.message || 'Error toggling subtask' });
-        }
-      },
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id && updatedTask) {
+            await FirebaseTaskRepository.updateTask(user.id, taskId, { subTasks: updatedTask.subTasks });
+          }
+      } catch (e: any) {
+           console.error('toggleSubTask failed:', e);
+           set({ error: e.message || 'Error toggling subtask' });
+      }
+    },
 
-      deleteSubTask: async (taskId, subTaskId) => {
-        set({ error: null });
-        let updatedTask: Task | undefined;
+    deleteSubTask: async (taskId, subTaskId) => {
+      set({ error: null });
+      let updatedTask: Task | undefined;
 
-        // Optimistic UI update
-        set((state) => {
-          const newTasks = state.tasks.map((task) => {
-            if (task.id === taskId) {
-              updatedTask = {
-                ...task,
-                subTasks: (task.subTasks || []).map((st) => st.id !== subTaskId ? st : null).filter(Boolean) as SubTask[],
-              };
-              return updatedTask;
-            }
-            return task;
-          });
-          return { tasks: newTasks };
+      // Optimistic UI update
+      set((state) => {
+        const newTasks = state.tasks.map((task) => {
+          if (task.id === taskId) {
+            updatedTask = {
+              ...task,
+              subTasks: (task.subTasks || []).map((st) => st.id !== subTaskId ? st : null).filter(Boolean) as SubTask[],
+            };
+            return updatedTask;
+          }
+          return task;
         });
+        return { tasks: newTasks };
+      });
 
-        try {
-            const user = useAuthStore.getState().user;
-            if (user?.uid && updatedTask) {
-              await FirebaseTaskRepository.updateTask(user.uid, taskId, { subTasks: updatedTask.subTasks });
-            }
-        } catch (e: any) {
-             console.error('deleteSubTask failed:', e);
-             set({ error: e.message || 'Error deleting subtask' });
-        }
-      },
-    }),
-    {
-      name: 'mindease-tasks',
-      partialize: (state) => ({ tasks: state.tasks }),
-    }
-  )
+      try {
+          const user = useAuthStore.getState().user;
+          if (user?.id && updatedTask) {
+            await FirebaseTaskRepository.updateTask(user.id, taskId, { subTasks: updatedTask.subTasks });
+          }
+      } catch (e: any) {
+           console.error('deleteSubTask failed:', e);
+           set({ error: e.message || 'Error deleting subtask' });
+      }
+    },
+  })
 );
+

@@ -41,7 +41,7 @@ vi.mock('firebase/auth', () => ({
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
   collection: vi.fn(),
-  doc: vi.fn(() => ({ id: 'mock-doc-id' })),
+  doc: vi.fn((...args: any[]) => ({ id: args[args.length - 1], args })),
   setDoc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -54,21 +54,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(() => vi.fn()), // Return an unsubscribe function
 }));
 
-// Mock MindEase Services to prevent subscription errors
-vi.mock('../services/firebase/FirebaseUserRepository', () => ({
-  FirebaseUserRepository: {
-    loadPreferences: vi.fn(),
-    savePreferences: vi.fn(),
-    setupStoreSubscriptions: vi.fn(() => vi.fn()),
-  }
-}));
-
-vi.mock('../services/firebase/FirebaseChatRepository', () => ({
-  FirebaseChatRepository: {
-    loadHistory: vi.fn(),
-    addMessage: vi.fn(),
-    clearHistory: vi.fn(),
-  }
+// Mock the firebase config
+vi.mock('../config/firebase', () => ({
+    db: { type: 'mock-db' },
+    auth: { type: 'mock-auth' }
 }));
 
 // Mock crypto for UUIDs in Node

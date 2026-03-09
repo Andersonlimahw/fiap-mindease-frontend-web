@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { FirebaseAuthService } from '../services/firebase/FirebaseAuthService';
 import { FirebaseUserRepository } from '../services/firebase/FirebaseUserRepository';
 import { FirebaseTaskRepository } from '../services/firebase/FirebaseTaskRepository';
@@ -10,9 +9,10 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading?: boolean;
   user: {
-    uid: string;
+    id: string; // Alterado de uid para id para seguir o padrão Mobile
     email: string;
     name?: string;
+    photoUrl?: string;
   } | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -24,74 +24,67 @@ let unsubscribeStore: () => void;
 let unsubscribeTasks: () => void;
 
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      isAuthenticated: false,
-      user: null,
+  (set) => ({
+    isAuthenticated: false,
+    isLoading: true,
+    user: null,
 
-      loginWithGoogle: async () => {
-        await FirebaseAuthService.loginWithGoogle();
-      },
+    loginWithGoogle: async () => {
+      await FirebaseAuthService.loginWithGoogle();
+    },
 
-      login: async (email: string, password: string) => {
-        await FirebaseAuthService.login(email, password);
-      },
+    login: async (email: string, password: string) => {
+      await FirebaseAuthService.login(email, password);
+    },
 
-      logout: async () => {
-        await FirebaseAuthService.logout();
+    logout: async () => {
+      await FirebaseAuthService.logout();
 
-        // Cleanup subscriptions
-        if (unsubscribeStore) unsubscribeStore();
-        if (unsubscribeTasks) unsubscribeTasks();
+      // Cleanup subscriptions
+      if (unsubscribeStore) unsubscribeStore();
+      if (unsubscribeTasks) unsubscribeTasks();
 
-        set({
-          isAuthenticated: false,
-          user: null,
-        });
-      },
-    }),
-    {
-      name: 'mindease-auth',
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        user: state.user,
-      }),
-    }
-  )
+      set({
+        isAuthenticated: false,
+        user: null,
+      });
+    },
+  })
 );
+
 
 // Initialize remote listener to sync Firebase user state with Zustand
 FirebaseAuthService.init();
 
 // Use a more robust check for authentication status
-let lastUid: string | null = null;
+let lastId: string | null = null;
 
 useAuthStore.subscribe((state) => {
-  const currentUid = state.isAuthenticated ? state.user?.uid : null;
+  const currentId = state.isAuthenticated ? state.user?.id : null;
   
-  if (currentUid && currentUid !== lastUid) {
-    console.log('useAuthStore: User authenticated, initializing data for', currentUid);
-    lastUid = currentUid;
+  if (currentId && currentId !== lastId) {
+    console.log('useAuthStore: User authenticated, initializing data for', currentId);
+    lastId = currentId;
     
     // 1. Load User Preferences
-    FirebaseUserRepository.loadPreferences(currentUid);
+    FirebaseUserRepository.loadPreferences(currentId);
     
     // 2. Setup save subscriptions for subsequent changes
     if (unsubscribeStore) unsubscribeStore();
-    unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(currentUid);
+    unsubscribeStore = FirebaseUserRepository.setupStoreSubscriptions(currentId);
     
     // 3. Subscribe to tasks
     if (unsubscribeTasks) unsubscribeTasks();
-    unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(currentUid, (tasks) => {
+    unsubscribeTasks = FirebaseTaskRepository.subscribeToTasks(currentId, (tasks) => {
         // Use the intelligent merge logic
         useTasksStore.getState().syncFromFirebase(tasks);
     });
     
     // 4. Load Chat History
-    FirebaseChatRepository.loadHistory(currentUid);
-  } else if (!currentUid && lastUid) {
+    FirebaseChatRepository.loadHistory(currentId);
+  } else if (!currentId && lastId) {
     console.log('useAuthStore: User logged out, cleaning up');
-    lastUid = null;
+    lastId = null;
     if (unsubscribeStore) unsubscribeStore();
     if (unsubscribeTasks) unsubscribeTasks();
   }
