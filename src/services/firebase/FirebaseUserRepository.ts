@@ -29,32 +29,34 @@ interface UserPreferences {
     reduceMotion?: boolean;
 }
 
-const COLLECTION_NAME = 'user_preferences';
+// Mobile path: users/{userId}/preferences/settings
+const getUserPrefsRef = (userId: string) =>
+    doc(db, 'users', userId, 'preferences', 'settings');
 
 export const FirebaseUserRepository = {
     /**
-     * Save user preferences — document ID is the userId
+     * Save user preferences at users/{userId}/preferences/settings.
+     * Matches the mobile path.
      */
     savePreferences: async (userId: string, preferences: Partial<UserPreferences>) => {
         if (!userId) return;
 
         try {
-            const prefRef = doc(db, COLLECTION_NAME, userId);
-            await setDoc(prefRef, preferences, { merge: true });
+            await setDoc(getUserPrefsRef(userId), preferences, { merge: true });
         } catch (error) {
             console.error('Error saving user preferences:', error);
         }
     },
 
     /**
-     * Load user preferences and sync with Zustand stores
+     * Load user preferences from users/{userId}/preferences/settings
+     * and sync with Zustand stores.
      */
     loadPreferences: async (userId: string) => {
         if (!userId) return;
 
         try {
-            const prefRef = doc(db, COLLECTION_NAME, userId);
-            const docSnap = await getDoc(prefRef);
+            const docSnap = await getDoc(getUserPrefsRef(userId));
 
             if (docSnap.exists()) {
                 const data = docSnap.data() as UserPreferences;

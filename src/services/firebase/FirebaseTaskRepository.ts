@@ -6,22 +6,27 @@ import {
     updateDoc,
     onSnapshot,
     query,
-    where,
     orderBy,
     serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Task } from '../../types/task';
 
-const COLLECTION_NAME = 'tasks';
+/**
+ * Firebase Task Repository (Web).
+ * Collection path: users/{userId}/tasks/{taskId}
+ * Matches mobile structure for cross-platform sync.
+ */
+
+/** Returns the tasks subcollection for a given user. */
+const getUserTasksCollection = (userId: string) =>
+    collection(db, 'users', userId, 'tasks');
 
 /**
- * Convert a Firestore Timestamp, ISO string, or any date-like value to ISO string.
- * Ensures consistent createdAt/completedAt format in the web Task model.
+ * Convert a Firestore Timestamp, ISO string, or number to ISO string.
  */
 const toISOString = (value: unknown): string => {
     if (!value) return new Date().toISOString();
-    // Firestore Timestamp has toDate()
     if (typeof (value as any).toDate === 'function') {
         return (value as any).toDate().toISOString();
     }
@@ -32,20 +37,20 @@ const toISOString = (value: unknown): string => {
 
 export const FirebaseTaskRepository = {
     /**
-     * Listen to user tasks in real-time from root 'tasks' collection.
-     * Ordered by createdAt desc to match mobile subscription behaviour.
+     * Listen to user tasks in real-time from users/{userId}/tasks subcollection.
+     * orderBy is safe here since no extra where() is needed on a subcollection.
      */
     subscribeToTasks: (userId: string, onUpdate: (tasks: Task[]) => void) => {
         if (!userId) return () => { };
 
-        const tasksRef = collection(db, COLLECTION_NAME);
-        const userTasksQuery = query(
-            tasksRef,
-            where('userId', '==', userId),
-            orderBy('createdAt', 'desc'),
+        console.log(`FirebaseTaskRepository: Subscribing to tasks for user ${userId}`);
+
+        const q = query(
+            getUserTasksCollection(userId),
+            orderBy('createdAt', 'desc')
         );
 
-        return onSnapshot(userTasksQuery, (snapshot) => {
+        return onSnapshot(q, (snapshot) => {
             const tasks: Task[] = [];
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
@@ -56,24 +61,22 @@ export const FirebaseTaskRepository = {
                     completedAt: data.completedAt ? toISOString(data.completedAt) : undefined,
                 } as Task);
             });
+
             console.log(`FirebaseTaskRepository: Received ${tasks.length} tasks for user ${userId}`);
             onUpdate(tasks);
         }, (error) => {
-            console.error('Error listening to tasks:', error);
+            console.error('FirebaseTaskRepository: Error listening to tasks:', error);
         });
     },
 
     /**
-     * Add a new task to root 'tasks' collection.
-     * Uses serverTimestamp() for createdAt to stay consistent with the mobile app
-     * and allow correct orderBy('createdAt') queries across platforms.
-     * Does NOT store redundant `id` or UI-only `expanded` fields.
+     * Add a new task to users/{userId}/tasks/{task.id}
      */
     addTask: async (userId: string, task: Task) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Adding task at ${COLLECTION_NAME}/${task.id}`);
-            const taskRef = doc(db, COLLECTION_NAME, task.id);
+            console.log(`FirebaseTaskRepository: Adding task at users/${userId}/tasks/${task.id}`);
+            const taskRef = doc(getUserTasksCollection(userId), task.id);
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, expanded, createdAt, completedAt, ...rest } = task;
             const taskToSave: Record<string, unknown> = {
@@ -94,13 +97,11 @@ export const FirebaseTaskRepository = {
 
     /**
      * Update an existing task.
-     * Strips UI-only fields before persisting.
      */
     updateTask: async (userId: string, taskId: string, updates: Partial<Task>) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Updating task ${COLLECTION_NAME}/${taskId}`);
-            const taskRef = doc(db, COLLECTION_NAME, taskId);
+            const taskRef = doc(getUserTasksCollection(userId), taskId);
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, expanded, ...dataToUpdate } = updates as any;
             await updateDoc(taskRef, dataToUpdate);
@@ -111,13 +112,12 @@ export const FirebaseTaskRepository = {
     },
 
     /**
-     * Delete a task
+     * Delete a task.
      */
     deleteTask: async (userId: string, taskId: string) => {
         if (!userId) return;
         try {
-            console.log(`FirebaseTaskRepository: Deleting task ${COLLECTION_NAME}/${taskId}`);
-            const taskRef = doc(db, COLLECTION_NAME, taskId);
+            const taskRef = doc(getUserTasksCollection(userId), taskId);
             await deleteDoc(taskRef);
         } catch (error) {
             console.error('Error deleting task in Firebase:', error);
