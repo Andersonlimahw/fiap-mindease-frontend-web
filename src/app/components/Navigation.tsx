@@ -1,6 +1,6 @@
-import { Brain, Settings, Target, CheckSquare, BookOpen, Timer, MessageSquare, Home } from 'lucide-react';
+import { Brain, Settings, Target, CheckSquare, BookOpen, Timer, MessageSquare, Home, User } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { Screen } from '@/stores';
+import { Screen, useAuthStore } from '@/stores';
 
 interface NavigationProps {
   currentScreen: Screen;
@@ -18,8 +18,10 @@ const navItems = [
 ];
 
 export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
+  const user = useAuthStore((state) => state.user);
+
   return (
-    <nav 
+    <nav
       className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800"
       role="navigation"
       aria-label="Navegação principal"
@@ -30,14 +32,14 @@ export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
               <Brain className="h-6 w-6 text-white" aria-hidden="true" />
             </div>
-            <span className="font-bold text-xl">MindEase</span>
+            <span className="font-bold text-xl hidden sm:inline">MindEase</span>
           </div>
-          
+
           <div className="flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentScreen === item.screen;
-              
+
               return (
                 <Button
                   key={item.screen}
@@ -48,10 +50,32 @@ export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden md:inline">{item.label}</span>
+                  <span className="hidden lg:inline">{item.label}</span>
                 </Button>
               );
             })}
+
+            {/* User Avatar */}
+            <div className="ml-2 border-l border-gray-200 dark:border-gray-800 pl-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full overflow-hidden h-9 w-9 p-0 border border-gray-100 dark:border-gray-800"
+                onClick={() => onNavigate('settings')}
+              >
+                {user?.photoUrl ? (
+                  <img
+                    src={user.photoUrl}
+                    alt={user.name || 'User avatar'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <User className="h-5 w-5 text-gray-500" />
+                  </div>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

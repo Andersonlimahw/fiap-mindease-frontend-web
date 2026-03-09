@@ -1,60 +1,27 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Eye, EyeOff, Brain } from 'lucide-react';
+import { Brain, Chrome } from 'lucide-react';
 import { useAuthStore, useNavigationStore } from '@/stores';
+import { toast } from 'sonner';
 
 export function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const emailRef = useRef<HTMLInputElement>(null);
   
-  const { login } = useAuthStore();
+  const { loginWithGoogle } = useAuthStore();
   const { navigate } = useNavigationStore();
 
-  useEffect(() => {
-    // Auto-focus on email field for keyboard navigation
-    emailRef.current?.focus();
-  }, []);
-
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: { email?: string; password?: string } = {};
-
-    if (!email) {
-      newErrors.email = 'Email é obrigatório';
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'Email inválido';
-    }
-
-    if (!password) {
-      newErrors.password = 'Senha é obrigatória';
-    } else if (password.length < 6) {
-      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length === 0) {
-      setIsLoading(true);
-      try {
-        await login(email, password);
-        navigate('dashboard');
-      } catch (error) {
-        setErrors({ password: 'Erro ao fazer login' });
-      } finally {
-        setIsLoading(false);
-      }
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await loginWithGoogle();
+      toast.success('Login realizado com sucesso!');
+      navigate('dashboard');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error('Erro ao fazer login com Google. Tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -70,95 +37,45 @@ export function LoginScreen() {
             Painel neuroadaptativo de produtividade e acessibilidade
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                ref={emailRef}
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-required="true"
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-                className={errors.email ? 'border-red-500' : ''}
-              />
-              {errors.email && (
-                <p id="email-error" className="text-sm text-red-600 dark:text-red-400" role="alert">
-                  {errors.email}
-                </p>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full h-12 text-lg font-medium border-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-3" 
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              aria-label="Fazer login com Google"
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" aria-hidden="true"></div>
+              ) : (
+                <>
+                  <Chrome className="h-5 w-5 text-blue-500" aria-hidden="true" />
+                  Entrar com Google
+                </>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-required="true"
-                  aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                  className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </Button>
-              </div>
-              {errors.password && (
-                <p id="password-error" className="text-sm text-red-600 dark:text-red-400" role="alert">
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
+          </div>
 
+          <div className="space-y-4 pt-4 border-t">
             <div className="space-y-2 text-center text-sm">
-              <button
-                type="button"
-                className="text-blue-600 hover:underline dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1"
-                onClick={() => alert('Demo: use qualquer email/senha válidos')}
-              >
-                Esqueceu a senha?
-              </button>
               <p className="text-gray-600 dark:text-gray-400">
-                Não tem conta?{' '}
+                Ao entrar, você concorda com nossos{' '}
                 <button
                   type="button"
                   className="text-blue-600 hover:underline dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1"
-                  onClick={() => alert('Demo: funcionalidade de registro')}
+                  onClick={() => alert('Demo: Termos de Uso')}
                 >
-                  Criar conta
+                  Termos de Uso
                 </button>
               </p>
             </div>
-
-            <div className="pt-4 border-t">
-              <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                💡 Demo: Use qualquer email e senha (mínimo 6 caracteres)
-              </p>
-            </div>
-          </form>
+            
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+              💡 Acesso seguro via autenticação oficial do Google
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

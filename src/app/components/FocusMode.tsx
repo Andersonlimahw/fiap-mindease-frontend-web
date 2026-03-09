@@ -5,7 +5,7 @@ import { Button } from '@/app/components/ui/button';
 import { Switch } from '@/app/components/ui/switch';
 import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { useNavigationStore, useFocusModeStore } from '@/stores';
+import { useNavigationStore, useFocusModeStore, AmbientSound } from '@/stores';
 import { Target, Volume2, VolumeX, Moon, Sun, Music, Bell, BellOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -193,8 +193,8 @@ export function FocusMode() {
                     </Label>
                     <Select
                       value={ambientSound}
-                      onValueChange={(value: any) =>
-                        setAmbientSound(value)
+                      onValueChange={(value: string) =>
+                        setAmbientSound(value as AmbientSound)
                       }
                     >
                       <SelectTrigger id="ambient-sound">

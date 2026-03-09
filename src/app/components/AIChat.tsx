@@ -6,16 +6,9 @@ import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { useNavigationStore, useChatStore } from '@/stores';
-import { MessageSquare, Send, Bot, User, Trash2, Sparkles } from 'lucide-react';
+import { MessageSquare, Send, Bot, User, Trash2, Sparkles, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
 
 const QUICK_PROMPTS = [
   'Como posso melhorar meu foco?',
@@ -25,33 +18,31 @@ const QUICK_PROMPTS = [
   'Técnicas de respiração para relaxar',
 ];
 
-const AI_RESPONSES: { [key: string]: string } = {
-  default: 'Olá! Sou seu assistente de produtividade MindEase. Como posso ajudá-lo hoje?',
-  foco: 'Para melhorar seu foco, recomendo:\n\n1. **Elimine distrações**: Desligue notificações e use o Modo Foco\n2. **Técnica Pomodoro**: Trabalhe em blocos de 25 minutos\n3. **Ambiente adequado**: Mantenha seu espaço organizado\n4. **Pausas regulares**: Faça intervalos curtos a cada hora\n5. **Hidratação**: Beba água regularmente',
-  pomodoro: 'A Técnica Pomodoro é um método de gerenciamento de tempo:\n\n🍅 **Como funciona:**\n- Trabalhe focado por 25 minutos\n- Faça uma pausa de 5 minutos\n- Após 4 "pomodoros", faça uma pausa de 15-30 minutos\n\n✨ **Benefícios:**\n- Melhora o foco e concentração\n- Reduz fadiga mental\n- Aumenta a produtividade\n- Torna tarefas grandes mais gerenciáveis',
-  ansiedade: 'Aqui estão algumas técnicas para reduzir ansiedade:\n\n🧘 **Respiração 4-7-8:**\n- Inspire por 4 segundos\n- Segure por 7 segundos\n- Expire por 8 segundos\n\n💭 **Mindfulness:**\n- Foque no momento presente\n- Observe seus pensamentos sem julgamento\n\n🚶 **Exercício físico:**\n- Caminhadas leves\n- Alongamento\n- Yoga',
-  tarefas: 'Para organizar suas tarefas efetivamente:\n\n📝 **Método GTD (Getting Things Done):**\n1. Capture tudo em um só lugar\n2. Esclareça o que cada item significa\n3. Organize por categoria/prioridade\n4. Revise regularmente\n5. Execute as ações\n\n🎯 **Use micro-etapas:**\n- Divida tarefas grandes em partes menores\n- Cada etapa deve levar 5-15 minutos\n- Marque como concluído para motivação\n\nUse nossa seção de Tarefas para implementar isso!',
-  respiração: 'Técnicas de respiração para relaxamento:\n\n🌬️ **Respiração Diafragmática:**\n- Coloque uma mão no peito, outra no abdômen\n- Respire profundamente pelo nariz\n- Sinta o abdômen expandir\n- Expire lentamente pela boca\n\n⚡ **Respiração Quadrada:**\n- Inspire: 4 segundos\n- Segure: 4 segundos\n- Expire: 4 segundos\n- Segure: 4 segundos\n\n💙 **Benefícios:**\n- Reduz estresse e ansiedade\n- Melhora o foco\n- Regula o sistema nervoso',
-};
-
 export function AIChat() {
   const { currentScreen, navigate } = useNavigationStore();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: AI_RESPONSES.default,
-      timestamp: new Date(),
-    },
-  ]);
+  
+  // Use global chat store instead of local state
+  const { 
+    messages, 
+    isLoading, 
+    error, 
+    sendMessageStream, 
+    clearHistory 
+  } = useChatStore();
+
   const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (error) {
+        toast.error(error);
+    }
+  }, [error]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -62,75 +53,29 @@ export function AIChat() {
     }
   };
 
-  const generateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('foco') || lowerMessage.includes('concentra')) {
-      return AI_RESPONSES.foco;
-    } else if (lowerMessage.includes('pomodoro')) {
-      return AI_RESPONSES.pomodoro;
-    } else if (lowerMessage.includes('ansiedade') || lowerMessage.includes('estress')) {
-      return AI_RESPONSES.ansiedade;
-    } else if (lowerMessage.includes('tarefa') || lowerMessage.includes('organiza')) {
-      return AI_RESPONSES.tarefas;
-    } else if (lowerMessage.includes('respira') || lowerMessage.includes('relaxa')) {
-      return AI_RESPONSES.respiração;
-    }
-    
-    return `Entendo que você está perguntando sobre "${userMessage}". Como assistente demo, tenho respostas prontas para tópicos como:\n\n- Melhorar foco\n- Técnica Pomodoro\n- Reduzir ansiedade\n- Organizar tarefas\n- Técnicas de respiração\n\nTente perguntar sobre um desses tópicos!`;
-  };
+  const handleSendMessage = async (message: string) => {
+    if (!message.trim() || isLoading) return;
 
-  const sendMessage = async (message: string) => {
-    if (!message.trim()) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInputMessage('');
-    setIsTyping(true);
-
-    // Simulate AI response delay
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: generateAIResponse(message),
-        timestamp: new Date(),
-      };
-      
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
+    await sendMessageStream(message);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(inputMessage);
+    handleSendMessage(inputMessage);
   };
 
   const handleQuickPrompt = (prompt: string) => {
-    sendMessage(prompt);
+    handleSendMessage(prompt);
   };
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: '1',
-        role: 'assistant',
-        content: AI_RESPONSES.default,
-        timestamp: new Date(),
-      },
-    ]);
+  const handleClearChat = () => {
+    clearHistory();
     toast.success('Conversa limpa');
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -144,9 +89,18 @@ export function AIChat() {
             Chat de Suporte IA
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Assistente inteligente para produtividade e bem-estar
+            Assistente inteligente movido a Gemini AI para produtividade e bem-estar
           </p>
         </div>
+
+        {error && (
+            <Card className="border-red-500 bg-red-50 dark:bg-red-900/10">
+                <CardContent className="flex items-center p-4 text-red-800 dark:text-red-200">
+                    <AlertCircle className="h-5 w-5 mr-2" aria-hidden="true" />
+                    <span>{error}</span>
+                </CardContent>
+            </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chat Area */}
@@ -159,18 +113,19 @@ export function AIChat() {
                       <Bot className="h-6 w-6 text-white" aria-hidden="true" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">MindEase AI</CardTitle>
+                      <CardTitle className="text-lg">MindEase AI (Gemini)</CardTitle>
                       <CardDescription className="text-xs flex items-center gap-1">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" aria-hidden="true" />
-                        Online
+                        <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} aria-hidden="true" />
+                        {isLoading ? 'Digitando...' : 'Online'}
                       </CardDescription>
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={clearChat}
+                    onClick={handleClearChat}
                     aria-label="Limpar conversa"
+                    disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -217,9 +172,20 @@ export function AIChat() {
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                             }`}
                           >
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                              {message.content}
-                            </p>
+                            <div 
+                                className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap"
+                                dangerouslySetInnerHTML={{ 
+                                    // Basic markdown-like parsing for bold text
+                                    __html: message.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+                                }}
+                            />
+                            {isLoading && message.role === 'assistant' && message.content === '' && (
+                                <div className="flex gap-1 py-1">
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
+                            )}
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 px-2">
                             {formatTime(message.timestamp)}
@@ -228,25 +194,6 @@ export function AIChat() {
                       </motion.div>
                     ))}
                   </AnimatePresence>
-
-                  {isTyping && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex gap-3"
-                    >
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                        <Bot className="h-5 w-5 text-white" aria-hidden="true" />
-                      </div>
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-3">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
                 </div>
               </ScrollArea>
 
@@ -257,13 +204,13 @@ export function AIChat() {
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     placeholder="Digite sua mensagem..."
-                    disabled={isTyping}
+                    disabled={isLoading}
                     aria-label="Mensagem"
                     className="flex-1"
                   />
                   <Button
                     type="submit"
-                    disabled={!inputMessage.trim() || isTyping}
+                    disabled={!inputMessage.trim() || isLoading}
                     aria-label="Enviar mensagem"
                   >
                     <Send className="h-4 w-4" aria-hidden="true" />
@@ -282,7 +229,7 @@ export function AIChat() {
                   Perguntas Rápidas
                 </CardTitle>
                 <CardDescription>
-                  Clique para começar uma conversa
+                  Clique para perguntar ao Gemini
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -292,7 +239,7 @@ export function AIChat() {
                     variant="outline"
                     className="w-full justify-start text-left h-auto py-2 px-3"
                     onClick={() => handleQuickPrompt(prompt)}
-                    disabled={isTyping}
+                    disabled={isLoading}
                   >
                     <span className="text-sm">{prompt}</span>
                   </Button>
@@ -302,18 +249,17 @@ export function AIChat() {
 
             <Card className="bg-indigo-50 dark:bg-indigo-950 border-indigo-200 dark:border-indigo-800">
               <CardHeader>
-                <CardTitle className="text-base">💡 Sobre o Chat IA</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+                  Powered by Gemini
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p>
-                  <strong>Demo Mode:</strong> Este é um chat com respostas pré-programadas.
-                </p>
-                <p>
-                  Em produção, este chat se conectaria à Ollama API para respostas
-                  personalizadas baseadas em IA local.
+                  As respostas agora são geradas em tempo real pela IA do Google (Gemini 2.5 Flash), oferecendo conselhos dinâmicos e precisos sobre neuroarquitetura e foco.
                 </p>
                 <Badge variant="secondary" className="mt-2">
-                  Privacidade Garantida
+                  Integração Ativa
                 </Badge>
               </CardContent>
             </Card>
@@ -325,15 +271,15 @@ export function AIChat() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full" aria-hidden="true" />
-                  <span>Respostas em tempo real</span>
+                  <span>Respostas Streamadas</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full" aria-hidden="true" />
-                  <span>Histórico de conversas</span>
+                  <span>Contexto de Conversa</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-purple-500 rounded-full" aria-hidden="true" />
-                  <span>100% acessível</span>
+                  <span>Histórico Persistido</span>
                 </div>
               </CardContent>
             </Card>
