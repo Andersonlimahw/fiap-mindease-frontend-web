@@ -15,7 +15,7 @@ export function Dashboard() {
   const { currentScreen, navigate } = useNavigationStore();
   const { theme } = useThemeStore();
 
-  const quickActions = [
+  const menuActions = [
     { screen: 'focus' as Screen, icon: Target, label: 'Modo Foco', description: 'Minimize distrações', color: 'from-blue-500 to-cyan-500' },
     { screen: 'tasks' as Screen, icon: CheckSquare, label: 'Tarefas', description: 'Gerencie micro-etapas', color: 'from-purple-500 to-pink-500' },
     { screen: 'reader' as Screen, icon: BookOpen, label: 'Leitor', description: 'Conteúdo adaptativo', color: 'from-green-500 to-emerald-500' },
@@ -35,7 +35,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Navigation currentScreen={currentScreen} onNavigate={navigate} />
       
-      <main className="container mx-auto p-4 md:p-6 space-y-6" role="main">
+      <main className="container mx-auto p-16 md:p-16 space-y-6" role="main">
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Bem-vindo ao MindEase</h1>
@@ -99,7 +99,7 @@ export function Dashboard() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Acesso Rápido</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {quickActions.map((action) => {
+            {menuActions.map((action) => {
               const Icon = action.icon;
               return (
                 <Card
