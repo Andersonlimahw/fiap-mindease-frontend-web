@@ -9,6 +9,9 @@
 ## Figma:
 [MindEase UI/UX](https://www.figma.com/design/p6jsQDxXRoS8ukHQ9a6Kff/MindEase-UI-UX?node-id=11-5253&t=VZfYF8xKgwRlcss0-1)
 
+## Pitch
+[MindEase Pitch](https://gamma.app/docs/Voce-e-produtivo-ou-apenas-ocupado-nt1gn55s1r5p5ka)
+
 ## 🏗️ Architecture & Technical Stack
 
 The project has been refactored to an optimized, strict-typed modern web stack, eliminating context-hell and relying on explicit global state management connected seamlessly to a backend-as-a-service.
