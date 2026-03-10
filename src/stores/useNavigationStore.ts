@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
-export type Screen = 'login' | 'dashboard' | 'settings' | 'focus' | 'tasks' | 'reader' | 'pomodoro' | 'chat';
+export type Screen = 'login' | 'dashboard' | 'settings' | 'focus' | 'tasks' | 'reader' | 'pomodoro' | 'chat' | 'mobile';
 
-const VALID_SCREENS: Screen[] = ['login', 'dashboard', 'settings', 'focus', 'tasks', 'reader', 'pomodoro', 'chat'];
+const VALID_SCREENS: Screen[] = ['login', 'dashboard', 'settings', 'focus', 'tasks', 'reader', 'pomodoro', 'chat', 'mobile'];
 
 const getScreenFromHash = (): Screen => {
   const hash = window.location.hash.replace(/^#\/?/, '');

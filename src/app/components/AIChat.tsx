@@ -20,14 +20,14 @@ const QUICK_PROMPTS = [
 
 export function AIChat() {
   const { currentScreen, navigate } = useNavigationStore();
-  
+
   // Use global chat store instead of local state
-  const { 
-    messages, 
-    isLoading, 
-    error, 
-    sendMessageStream, 
-    clearHistory 
+  const {
+    messages,
+    isLoading,
+    error,
+    sendMessageStream,
+    clearHistory
   } = useChatStore();
 
   const [inputMessage, setInputMessage] = useState('');
@@ -40,7 +40,7 @@ export function AIChat() {
 
   useEffect(() => {
     if (error) {
-        toast.error(error);
+      toast.error(error);
     }
   }, [error]);
 
@@ -81,7 +81,7 @@ export function AIChat() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Navigation currentScreen={currentScreen} onNavigate={navigate} />
-      
+
       <main className="container mx-auto p-16 md:p-16 space-y-6" role="main">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -89,17 +89,17 @@ export function AIChat() {
             Chat de Suporte IA
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Assistente inteligente movido a Gemini AI para produtividade e bem-estar
+            Assistente inteligente para dicas de produtividade e bem-estar
           </p>
         </div>
 
         {error && (
-            <Card className="border-red-500 bg-red-50 dark:bg-red-900/10">
-                <CardContent className="flex items-center p-4 text-red-800 dark:text-red-200">
-                    <AlertCircle className="h-5 w-5 mr-2" aria-hidden="true" />
-                    <span>{error}</span>
-                </CardContent>
-            </Card>
+          <Card className="border-red-500 bg-red-50 dark:bg-red-900/10">
+            <CardContent className="flex items-center p-4 text-red-800 dark:text-red-200">
+              <AlertCircle className="h-5 w-5 mr-2" aria-hidden="true" />
+              <span>{error}</span>
+            </CardContent>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -113,7 +113,7 @@ export function AIChat() {
                       <Bot className="h-6 w-6 text-white" aria-hidden="true" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">MindEase AI (Gemini)</CardTitle>
+                      <CardTitle className="text-lg">MindEase AI</CardTitle>
                       <CardDescription className="text-xs flex items-center gap-1">
                         <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} aria-hidden="true" />
                         {isLoading ? 'Digitando...' : 'Online'}
@@ -142,16 +142,14 @@ export function AIChat() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className={`flex gap-3 ${
-                          message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                        }`}
+                        className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                          }`}
                       >
                         <div
-                          className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
-                            message.role === 'user'
+                          className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${message.role === 'user'
                               ? 'bg-blue-500'
                               : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                          }`}
+                            }`}
                           aria-hidden="true"
                         >
                           {message.role === 'user' ? (
@@ -161,30 +159,28 @@ export function AIChat() {
                           )}
                         </div>
                         <div
-                          className={`flex-1 max-w-[80%] space-y-1 ${
-                            message.role === 'user' ? 'items-end' : 'items-start'
-                          }`}
+                          className={`flex-1 max-w-[80%] space-y-1 ${message.role === 'user' ? 'items-end' : 'items-start'
+                            }`}
                         >
                           <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              message.role === 'user'
+                            className={`rounded-2xl px-4 py-2 ${message.role === 'user'
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            }`}
+                              }`}
                           >
-                            <div 
-                                className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap"
-                                dangerouslySetInnerHTML={{ 
-                                    // Basic markdown-like parsing for bold text
-                                    __html: message.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                                }}
+                            <div
+                              className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap"
+                              dangerouslySetInnerHTML={{
+                                // Basic markdown-like parsing for bold text
+                                __html: message.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              }}
                             />
                             {isLoading && message.role === 'assistant' && message.content === '' && (
-                                <div className="flex gap-1 py-1">
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
+                              <div className="flex gap-1 py-1">
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </div>
                             )}
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 px-2">
@@ -229,7 +225,7 @@ export function AIChat() {
                   Perguntas Rápidas
                 </CardTitle>
                 <CardDescription>
-                  Clique para perguntar ao Gemini
+                  Inicie uma conversa rapidamente
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -251,12 +247,12 @@ export function AIChat() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Bot className="h-4 w-4 text-indigo-500" aria-hidden="true" />
-                  Powered by Gemini
+                  Powered by MindEase AI
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p>
-                  As respostas agora são geradas em tempo real pela IA do Google (Gemini 2.5 Flash), oferecendo conselhos dinâmicos e precisos sobre neuroarquitetura e foco.
+                  As respostas são geradas em tempo real pelo modelo local ou via API, oferecendo conselhos dinâmicos e precisos sobre neuroarquitetura e foco.
                 </p>
                 <Badge variant="secondary" className="mt-2">
                   Integração Ativa

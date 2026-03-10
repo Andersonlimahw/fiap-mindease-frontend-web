@@ -1,4 +1,4 @@
-import { Brain, Settings, Target, CheckSquare, BookOpen, Timer, MessageSquare, Home, User } from 'lucide-react';
+import { Brain, Settings, Target, CheckSquare, BookOpen, Timer, MessageSquare, Home, User, Smartphone } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Screen, useAuthStore } from '@/stores';
 
@@ -14,6 +14,7 @@ const navItems = [
   { screen: 'reader' as Screen, icon: BookOpen, label: 'Leitor' },
   { screen: 'pomodoro' as Screen, icon: Timer, label: 'Pomodoro' },
   { screen: 'chat' as Screen, icon: MessageSquare, label: 'IA Chat' },
+  { screen: 'mobile' as Screen, icon: Smartphone, label: 'App Mobile' },
   { screen: 'settings' as Screen, icon: Settings, label: 'Configurações' },
 ];
 

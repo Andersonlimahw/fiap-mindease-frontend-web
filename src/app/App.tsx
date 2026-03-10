@@ -10,6 +10,7 @@ import { TasksScreen } from '@/app/components/TasksScreen';
 import { ContentReader } from '@/app/components/ContentReader';
 import { PomodoroTimer } from '@/app/components/PomodoroTimer';
 import { AIChat } from '@/app/components/AIChat';
+import { MobileAppScreen } from '@/app/components/MobileAppScreen';
 import { useAuthStore, useNavigationStore, usePomodoroStore, useFocusModeStore } from '@/stores';
 
 export default function App() {
@@ -59,6 +60,8 @@ export default function App() {
         return <PomodoroTimer />;
       case 'chat':
         return <AIChat />;
+      case 'mobile':
+        return <MobileAppScreen />;
       default:
         return <Dashboard />;
     }
