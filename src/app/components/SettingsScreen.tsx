@@ -57,7 +57,7 @@ export function SettingsScreen({ onLogout }: SettingsScreenProps) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Navigation currentScreen={currentScreen} onNavigate={navigate} />
       
-      <main className="container mx-auto p-4 md:p-6 space-y-6" role="main">
+      <main className="container mx-auto p-16 md:p-16 space-y-6" role="main">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Configurações</h1>
           <p className="text-gray-600 dark:text-gray-400">
