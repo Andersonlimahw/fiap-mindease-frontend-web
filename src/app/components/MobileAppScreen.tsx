@@ -71,7 +71,7 @@ export function MobileAppScreen() {
                         </p>
                         <div className="pt-8 flex flex-col sm:flex-row justify-center gap-4 items-center">
                             <Button size="lg" className="gap-2 rounded-full px-8 h-14 text-base font-semibold shadow-xl shadow-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all" asChild>
-                                <a href="https://drive.google.com/file/d/1H-Kv0t6ORMKAiWECfu0GpPdBrGYRKwhK/view?usp=drive_link" download target='_blank'>
+                                <a href="https://drive.google.com/file/d/17IM6UnaepTkG0IGAoiv_bhDrV0eanX35/view?usp=drive_link" download target='_blank'>
                                     <Download className="w-5 h-5" />
                                     Baixar APK para Android
                                 </a>
